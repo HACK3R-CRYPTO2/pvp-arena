@@ -68,14 +68,14 @@ export const BotSearch = forwardRef<BotSearchHandle, BotSearchProps>(
             setError(`Could not resolve "${trimmed}"`)
           }
         } else {
-          // Assume it's a subdomain shortcut, append .claw2claw.eth
-          const fullName = `${trimmed}.claw2claw.eth`
+          // Assume it's a subdomain shortcut or partial name, append .pvparena.eth for the search
+          const fullName = trimmed.includes('.') ? trimmed : `${trimmed}.pvparena.eth`
           const res = await api.post('/api/bots/ens/resolve', { ensName: fullName })
           if (res.data.success && res.data.address) {
             setResolvedLabel(fullName)
             onBotResolved(res.data.address, fullName)
           } else {
-            setError(`Could not resolve "${fullName}"`)
+            setError(`Could not resolve "${trimmed}"`)
           }
         }
       } catch (err: any) {

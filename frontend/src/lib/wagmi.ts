@@ -1,5 +1,5 @@
 /**
- * Wagmi Configuration for Claw2Claw
+ * Wagmi Configuration
  * 
  * Uses NEXT_PUBLIC_ENS_MAINNET to toggle between mainnet and Sepolia.
  */

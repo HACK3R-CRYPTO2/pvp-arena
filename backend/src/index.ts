@@ -25,13 +25,45 @@ async function main() {
                 return;
             }
 
-            if (req.url === '/status') {
+            if (req.url === '/status' && req.method === 'GET') {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(arena.getMarketState()));
-            } else {
-                res.writeHead(404);
-                res.end();
+                return;
             }
+
+            if (req.method === 'POST') {
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', async () => {
+                    try {
+                        const data = JSON.parse(body);
+
+                        if (req.url === '/api/bots/ens/resolve') {
+                            const address = await arena.resolveName(data.ensName || '');
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: !!address, address }));
+                            return;
+                        }
+
+                        if (req.url === '/api/bots/ens/reverse') {
+                            const name = await arena.reverseResolve(data.address || '');
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: !!name, name }));
+                            return;
+                        }
+
+                        res.writeHead(404);
+                        res.end();
+                    } catch (e) {
+                        res.writeHead(400);
+                        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                    }
+                });
+                return;
+            }
+
+            res.writeHead(404);
+            res.end();
         });
 
         const PORT = 3001;

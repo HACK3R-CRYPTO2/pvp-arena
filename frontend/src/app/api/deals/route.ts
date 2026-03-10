@@ -10,8 +10,11 @@ const client = createPublicClient({
     transport: http('https://unichain-sepolia-rpc.publicnode.com'),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const filterAddress = searchParams.get('botAddress')?.toLowerCase();
+        
         const hookAddress = P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`;
         const registryAddress = P2P_TRADING_ARENA_ADDRESSES.AgentRegistry as `0x${string}`;
 
@@ -139,14 +142,21 @@ export async function GET() {
                     isInternalClash: isInternalClash,
                     status: isCompleted ? 'completed' : (Date.now()/1000 > expiry ? 'expired' : 'active'),
                     profit: profit, // Now returns numeric string (can be negative)
-                    createdAt: new Date(expiry * 1000 - 3600 * 1000).toISOString(),
+                    createdAt: new Date(expiry * 1000 - 300 * 1000).toISOString(),
                 });
             } catch (orderErr) {
                 // Skip
             }
         }
 
-        return NextResponse.json({ deals: deals.reverse() });
+        const filteredDeals = filterAddress 
+            ? deals.filter(d => 
+                d.makerAddress.toLowerCase() === filterAddress || 
+                d.takerAddress?.toLowerCase() === filterAddress
+              )
+            : deals;
+
+        return NextResponse.json({ deals: filteredDeals.reverse() });
     } catch (error: any) {
         console.error('Failed to fetch deals:', error);
         return NextResponse.json({ 

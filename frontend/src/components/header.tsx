@@ -33,7 +33,7 @@ export function Header({ viewMode, onViewModeChange, onReset }: HeaderProps) {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-3 hover:opacity-80">
-            <Image src="/logo-06-removebg-preview.png" alt="Claw2Claw" width={48} height={48} />
+            <Image src="/logo-06-removebg-preview.png" alt="PvP Arena" width={48} height={48} />
             <div>
               <h1 className="text-xl font-bold text-foreground">
                 PvP Arena

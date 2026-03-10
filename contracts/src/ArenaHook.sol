@@ -325,7 +325,7 @@ contract ArenaHook is IHooks, ReentrancyGuard {
             // Taker (PM) -> Maker
             // We owe Maker 'order.minAmountOut'.
             // The Taker provided 'takerAmountIn'. If taller than minAmountOut, Maker gets bonus?
-            // Or Taker keeps dust? Claw2Claw logic: Taker pays 'minAmountOut'.
+            // Or Taker keeps dust? Arena logic: Taker pays 'minAmountOut'.
             uint128 takerPays = order.minAmountOut;
 
             // 1. Take from Taker (via PM) -> Maker

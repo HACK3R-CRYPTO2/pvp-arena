@@ -10,15 +10,15 @@ import { normalize } from 'viem/ens'
 import { ensChainId } from '@/lib/wagmi'
 
 // ============================================================
-// DeFi text record keys used by Claw2Claw bots
+// DeFi text record keys used by arena bots
 // ============================================================
 
 export const ENS_RECORD_KEYS = {
-  STRATEGY: 'com.claw2claw.strategy',
-  RISK: 'com.claw2claw.risk',
-  PAIRS: 'com.claw2claw.pairs',
-  MAX_ORDER: 'com.claw2claw.maxOrder',
-  ACTIVE: 'com.claw2claw.active',
+  STRATEGY: 'com.pvparena.strategy',
+  RISK: 'com.pvparena.risk',
+  PAIRS: 'com.pvparena.pairs',
+  MAX_ORDER: 'com.pvparena.maxOrder',
+  ACTIVE: 'com.pvparena.active',
   DESCRIPTION: 'description',
   AVATAR: 'avatar',
   URL: 'url',
@@ -43,7 +43,7 @@ function safeNormalize(name: string | undefined): string | undefined {
 
 /**
  * Resolve an Ethereum address to its ENS name
- * Example: 0x1234... → "clawbot.claw2claw.eth"
+ * Example: 0x1234... → "bot.pvparena.eth"
  */
 export function useEnsNameForAddress(address: `0x${string}` | undefined) {
   return useEnsName({
@@ -55,7 +55,7 @@ export function useEnsNameForAddress(address: `0x${string}` | undefined) {
 
 /**
  * Resolve an ENS name to an Ethereum address
- * Example: "clawbot.claw2claw.eth" → 0x1234...
+ * Example: "bot.pvparena.eth" → 0x1234...
  */
 export function useEnsAddressForName(name: string | undefined) {
   const normalized = safeNormalize(name)

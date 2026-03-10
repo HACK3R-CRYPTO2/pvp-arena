@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Web3 Providers for Claw2Claw
+ * Web3 Providers
  * 
  * Wraps the app with WagmiProvider + QueryClientProvider
  * to enable wagmi hooks throughout the frontend.

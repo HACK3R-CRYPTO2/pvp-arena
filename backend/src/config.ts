@@ -9,6 +9,7 @@ export const CONFIG = {
 
     // Contract Addresses
     L2_HOOK_ADDRESS: process.env.L2_HOOK_ADDRESS || '',
+    AGENT_REGISTRY_ADDRESS: "0x9db5a15aefec199b718fa4f9c8aec126ba2f9d29",
     L1_SENTINEL_ADDRESS: process.env.L1_SENTINEL_ADDRESS || '', // To be deployed
 
     // Agent Wallet
