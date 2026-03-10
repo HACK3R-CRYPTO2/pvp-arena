@@ -20,8 +20,15 @@ interface Deal {
   fromTokenDecimals: number
   toTokenDecimals: number
   botAddress: string
+  makerAddress?: string
+  takerAddress?: string | null
+  isInternalClash?: boolean
   botEnsName?: string | null
   status: string
+  profit?: string | null
+  agentId?: number | null
+  winnerIsAi?: boolean
+  isHumanMaker?: boolean
   createdAt: string
 }
 
@@ -91,15 +98,37 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
   }
 
   function DealEntry({ deal }: { deal: Deal }) {
-    const { name, isBot } = useAgentIdentity(deal.botAddress)
-    // Map bot to AgentID for reputation lookup (Demo hardcoding: Alpha=2, Beta=3)
-    const agentId = deal.botAddress.toLowerCase() === '0xd2df53d9791e98db221842dd085f4144014bbe2a' ? 2 : (deal.regime === 'p2p' ? 3 : undefined)
+    // Taker is either specified in event, or we use botAddress ONLY if not completed (bait)
+    const takerAddrResolved = deal.takerAddress || (deal.status !== 'completed' ? deal.botAddress : undefined);
+    const { name: takerName, isBot: isTakerBot, isMe: isTakerMe } = useAgentIdentity(takerAddrResolved)
+    const { name: makerName, isBot: isMakerBot, isMe: isMakerMe } = useAgentIdentity(deal.makerAddress)
+    
+    // Use agentId from deal (resolved by API from registry) or fallback
+    const agentId = deal.agentId || (deal.botAddress?.toLowerCase() === '0xd2df53d9791e98db221842dd085f4144014bbe2a' ? 1 : 2)
     const { score } = useAgentReputation(agentId)
 
+    const isCompleted = deal.status === 'completed'
+
+    // Final Logic for Name Resolution: 
+    const resolvedWinnerName = deal.winnerIsAi 
+      ? (deal.agentId === 2 ? 'BetaSentinel' : 'AlphaMachine') 
+      : (isCompleted && !deal.takerAddress) 
+        ? 'Unknown Sniper' 
+        : takerName;
+
+    const resolvedMakerName = (deal.isHumanMaker && isMakerMe) 
+      ? 'You' 
+      : (!deal.isHumanMaker && isMakerBot) 
+        ? makerName 
+        : (isMakerMe ? 'You' : makerName);
+
+    const profitVal = deal.profit ? parseFloat(deal.profit) : null;
+    const isProfitPositive = profitVal !== null && profitVal >= 0;
+
     return (
-      <div className="block px-2 py-3 hover:bg-white/5 transition-colors rounded border-b border-white/5 last:border-0 cursor-default">
+      <div className={`block px-2 py-3 hover:bg-white/5 transition-colors rounded border-b border-white/5 last:border-0 cursor-default ${deal.isInternalClash ? 'opacity-80' : ''}`}>
         <div className="flex items-center gap-4">
-          <div className={`w-8 h-8 rounded flex-shrink-0 flex items-center justify-center text-xs font-bold ${deal.status === 'completed' ? 'bg-green-500/20 text-green-500' : deal.status === 'failed' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+          <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center text-xs font-bold ${deal.status === 'completed' ? 'bg-green-500/20 text-green-500' : deal.status === 'failed' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
             {deal.status === 'completed' ? '✓' : deal.status === 'failed' ? '✗' : '⏳'}
           </div>
 
@@ -111,22 +140,45 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${regimeStyle(deal.regime)}`}>
                 {regimeLabel(deal.regime)}
               </span>
-              {isBot && (
+              {(isTakerBot || deal.winnerIsAi) && (
                 <span className="text-[10px] bg-primary/10 text-primary px-1 rounded-sm border border-primary/20">
-                  Rating: {score}%
+                  {deal.isInternalClash ? 'Node Balance' : `Trust Score: ${score}%`}
+                </span>
+              )}
+              {deal.profit && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-mono animate-pulse ${isProfitPositive ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                  Capture: {isProfitPositive ? '+' : '-'}${Math.abs(parseFloat(deal.profit)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </span>
               )}
             </div>
             <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-              <span className={isBot ? "text-primary font-medium" : ""}>
-                {name}
-              </span>
+              {isCompleted ? (
+                <>
+                  <span className="text-green-500 font-bold text-[10px] uppercase tracking-wider">Winner:</span>
+                  <span className={(isTakerBot || deal.winnerIsAi) ? "text-foreground font-bold" : "text-foreground"}>
+                    {resolvedWinnerName}
+                  </span>
+                  <span className="text-[10px] opacity-50">vs</span>
+                  <span className="text-muted-foreground font-bold text-[10px] uppercase tracking-wider">Maker:</span>
+                  <span className="text-muted-foreground">
+                    {resolvedMakerName}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-muted-foreground font-bold text-[10px] uppercase tracking-wider">Maker:</span>
+                  <span className="text-muted-foreground">
+                    {resolvedMakerName}
+                  </span>
+                  <span className="italic opacity-50 text-[10px]">(Awaiting Profit Taker...)</span>
+                </>
+              )}
               <span>·</span>
               <span>{timeAgo(deal.createdAt)}</span>
             </div>
           </div>
 
-          <div className="text-right flex-shrink-0">
+          <div className="text-right shrink-0">
             <div className="font-mono text-sm text-foreground">
               {formatTokenAmount(deal.fromAmount, deal.fromTokenDecimals)} {deal.fromToken}
             </div>

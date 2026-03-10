@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http, parseAbiItem } from 'viem';
 import { unichainSepolia } from 'viem/chains';
 import ArenaHookABI from '@/abis/ArenaHook.json';
+import AgentRegistryABI from '@/abis/AgentRegistry.json';
 import { P2P_TRADING_ARENA_ADDRESSES } from '@/config/contracts';
 
 const client = createPublicClient({
@@ -12,6 +13,32 @@ const client = createPublicClient({
 export async function GET() {
     try {
         const hookAddress = P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`;
+        const registryAddress = P2P_TRADING_ARENA_ADDRESSES.AgentRegistry as `0x${string}`;
+
+        // Dynamic Bot Addresses: Fetch from Registry
+        let ALPHA_ADDRESS = '';
+        let BETA_ADDRESS = '';
+        try {
+            const [alphaAddr, betaAddr] = await Promise.all([
+                client.readContract({
+                    address: registryAddress,
+                    abi: (AgentRegistryABI as any).abi || AgentRegistryABI,
+                    functionName: 'getAgentWallet',
+                    args: [BigInt(1)],
+                }),
+                client.readContract({
+                    address: registryAddress,
+                    abi: (AgentRegistryABI as any).abi || AgentRegistryABI,
+                    functionName: 'getAgentWallet',
+                    args: [BigInt(2)],
+                })
+            ]) as [`0x${string}`, `0x${string}`];
+            ALPHA_ADDRESS = alphaAddr.toLowerCase();
+            BETA_ADDRESS = betaAddr.toLowerCase();
+        } catch (botErr) {
+            ALPHA_ADDRESS = '0xd2df53d9791e98db221842dd085f4144014bbe2a'.toLowerCase();
+            BETA_ADDRESS = '0x84a78a6f73ac2b74c457965f38f3afac9a34a6cc'.toLowerCase();
+        }
 
         // Get total number of orders
         const nextOrderIdRaw = await client.readContract({
@@ -23,36 +50,108 @@ export async function GET() {
         const count = Number(nextOrderIdRaw);
         const deals = [];
 
-        // Fetch last 10 orders to show as deals
-        const startIndex = Math.max(0, count - 10);
+        // Fetch last 15 orders
+        const startIndex = Math.max(0, count - 15);
+
+        // Pre-fetch OrderFilled events to find real winners
+        const latestBlock = await client.getBlockNumber();
+        const fromBlock = latestBlock > BigInt(45000) ? latestBlock - BigInt(45000) : BigInt(0);
+
+        const fillLogs = await client.getLogs({
+            address: hookAddress,
+            event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
+            fromBlock: fromBlock
+        });
+
+        const winnersMap: Record<number, { taker: string, byAi: boolean }> = {};
+        fillLogs.forEach(log => {
+            if (log.args.orderId !== undefined) {
+                winnersMap[Number(log.args.orderId)] = {
+                    taker: (log.args.taker as string).toLowerCase(),
+                    byAi: !!log.args.byReactiveAi
+                };
+            }
+        });
 
         for (let i = startIndex; i < count; i++) {
-            const orderData = await client.readContract({
-                address: hookAddress,
-                abi: (ArenaHookABI as any).abi || ArenaHookABI,
-                functionName: 'orders',
-                args: [BigInt(i)],
-            }) as any;
+            try {
+                const orderData = await client.readContract({
+                    address: hookAddress,
+                    abi: (ArenaHookABI as any).abi || ArenaHookABI,
+                    functionName: 'orders',
+                    args: [BigInt(i)],
+                }) as any;
 
-            // orderData: [maker, sellToken0, amountIn, minAmountOut, expiry, active, filled, fillAmount]
-            deals.push({
-                id: i.toString(),
-                regime: 'p2p',
-                fromToken: orderData[1] ? 'TKNA' : 'TKNB',
-                toToken: orderData[1] ? 'TKNB' : 'TKNA',
-                fromAmount: orderData[2].toString(),
-                toAmount: orderData[3].toString(),
-                fromTokenDecimals: 18,
-                toTokenDecimals: 18,
-                botAddress: orderData[0],
-                status: !orderData[5] ? 'completed' : 'active',
-                createdAt: new Date(Number(orderData[4]) * 1000 - 3600 * 1000).toISOString(),
-            });
+                const makerAddress = orderData[0].toLowerCase();
+                const isTKNA = orderData[1];
+                const fromAmount = Number(orderData[2]) / 1e18;
+                const toAmount = Number(orderData[3]) / 1e18;
+                const expiry = Number(orderData[4]);
+                const isCompleted = !orderData[5];
+                const isHumanMaker = !!orderData[7];
+
+                let profit = null;
+                if (isCompleted) {
+                    // Simulated market price for this order index
+                    const priceSeed = 3000 + ( (i * 1337) % 100 ) - 50; 
+                    
+                    if (isTKNA) {
+                        // Maker sells TKNA (Asset) for TKNB (Stable)
+                        // Sniper buys Asset at toAmount, sells at priceSeed
+                        const marketValue = fromAmount * priceSeed;
+                        profit = (marketValue - toAmount).toFixed(2);
+                    } else {
+                        // Maker sells TKNB (Stable) for TKNA (Asset)
+                        // Sniper gives toAmount (Asset), gets fromAmount (Stable)
+                        const marketValueGiven = toAmount * priceSeed;
+                        profit = (fromAmount - marketValueGiven).toFixed(2);
+                    }
+                }
+
+                const winnerInfo = winnersMap[i];
+                const takerAddress = winnerInfo?.taker || null;
+                
+                let agentId = null;
+                if (takerAddress === ALPHA_ADDRESS) agentId = 1;
+                else if (takerAddress === BETA_ADDRESS) agentId = 2;
+                else if (makerAddress === ALPHA_ADDRESS) agentId = 1;
+                else if (makerAddress === BETA_ADDRESS) agentId = 2;
+
+                const isInternalClash = isCompleted && 
+                    (makerAddress === ALPHA_ADDRESS || makerAddress === BETA_ADDRESS) &&
+                    (takerAddress === ALPHA_ADDRESS || takerAddress === BETA_ADDRESS);
+
+                deals.push({
+                    id: i.toString(),
+                    regime: 'p2p',
+                    fromToken: isTKNA ? 'TKNA' : 'TKNB',
+                    toToken: isTKNA ? 'TKNB' : 'TKNA',
+                    fromAmount: orderData[2].toString(),
+                    toAmount: orderData[3].toString(),
+                    fromTokenDecimals: 18,
+                    toTokenDecimals: 18,
+                    botAddress: takerAddress || (isCompleted ? null : makerAddress),
+                    makerAddress: orderData[0],
+                    takerAddress: takerAddress,
+                    winnerIsAi: winnerInfo?.byAi || false,
+                    isHumanMaker: isHumanMaker,
+                    agentId: agentId,
+                    isInternalClash: isInternalClash,
+                    status: isCompleted ? 'completed' : (Date.now()/1000 > expiry ? 'expired' : 'active'),
+                    profit: profit, // Now returns numeric string (can be negative)
+                    createdAt: new Date(expiry * 1000 - 3600 * 1000).toISOString(),
+                });
+            } catch (orderErr) {
+                // Skip
+            }
         }
 
         return NextResponse.json({ deals: deals.reverse() });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to fetch deals:', error);
-        return NextResponse.json({ deals: [], error: 'Failed' }, { status: 500 });
+        return NextResponse.json({ 
+            deals: [], 
+            error: error.message || 'Failed'
+        }, { status: 500 });
     }
 }

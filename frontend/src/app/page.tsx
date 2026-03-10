@@ -5,6 +5,7 @@ import { BotSearch, BotSearchHandle } from '@/components/bot-search'
 import { CreateOrderForm } from '@/components/create-order-form'
 import { DealsList } from '@/components/deals-list'
 import { Header } from '@/components/header'
+import { MarketPulse } from '@/components/market-pulse'
 import { OrdersList } from '@/components/orders-list'
 import { StatsBar } from '@/components/stats-bar'
 import Link from 'next/link'
@@ -121,6 +122,10 @@ function HomeContent() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 pb-12">
+        <div className="mb-6">
+          <MarketPulse />
+        </div>
+
         {/* Stats Bar */}
         <div className="mb-8 p-1">
           <StatsBar viewMode={viewMode} botAddress={botAddress} />

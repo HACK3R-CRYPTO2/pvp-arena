@@ -14,7 +14,7 @@ export class BotService {
     private bots: Map<number, BotProfile> = new Map();
 
     constructor(provider: ethers.JsonRpcProvider) {
-        // AlphaBot: The Market Maker / Bait (Uses the default private key)
+        // AlphaBot: AgentID 1 - Uses the main private key
         const alphaWallet = new ethers.Wallet(CONFIG.PRIVATE_KEY, provider) as unknown as ethers.Wallet;
         this.bots.set(1, {
             id: 1,
@@ -25,21 +25,16 @@ export class BotService {
             wallet: alphaWallet
         });
 
-        // BetaBot: The Sniper (Deterministic derivation from Alpha key for stability)
-        // We use a different private key derived from the same mnemonic if possible, 
-        // but since we only have a hex key, we'll just use a slightly modified key.
-        // For hackathon, we can just use the same key or a related one.
-        // Let's use the same key for both for simplicity in the registry, 
-        // OR better: use a derived one.
-
-        // Actually, to match the registry where all are 0xd2df53, let's use the same wallet.
+        // BetaBot: AgentID 2 - USES A DERIVED KEY (Matching the registration script)
+        const betaKey = ethers.keccak256(ethers.toUtf8Bytes(CONFIG.PRIVATE_KEY + "beta"));
+        const betaWallet = new ethers.Wallet(betaKey, provider) as unknown as ethers.Wallet;
         this.bots.set(2, {
             id: 2,
             name: 'BetaSentinel',
-            address: alphaWallet.address,
-            description: 'Reactive high-frequency sniper. Fills orders as soon as V4 price hits.',
+            address: betaWallet.address,
+            description: 'Reactive high-frequency sniper. Fills orders based on L1 signals.',
             strategy: 'AGGRESSIVE',
-            wallet: alphaWallet
+            wallet: betaWallet
         });
     }
 
