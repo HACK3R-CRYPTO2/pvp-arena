@@ -79,7 +79,7 @@ export function useAgentReputation(agentId: number | undefined) {
                     args: {
                         agentId: BigInt(agentId!)
                     },
-                    fromBlock: BigInt(46390000)
+                    fromBlock: BigInt(46410000)
                 })
 
                 // Calculation: (Baseline 60 * Weight + Sum of On-Chain Successes) / (Weight + Count of Logs)

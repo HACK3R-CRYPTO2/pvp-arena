@@ -8,7 +8,7 @@ import { P2P_TRADING_ARENA_ADDRESSES } from '@/config/contracts'
 import { Button } from './ui/button'
 
 interface CreateOrderFormProps {
-    variant?: 'default' | 'wide'
+    variant?: 'default' | 'wide' | 'compact'
 }
 
 export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
@@ -108,6 +108,83 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
         } catch (err) {
             console.error("Order creation failed", err)
         }
+    }
+
+    if (variant === 'compact') {
+        return (
+            <div className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] text-muted-foreground font-cyber uppercase tracking-widest">Target Assets</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <input
+                                type="text"
+                                placeholder="Sell 0x..."
+                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-[10px] font-mono focus:border-neon-purple/50 outline-none placeholder:opacity-30"
+                                value={tokenIn}
+                                onChange={e => setTokenIn(e.target.value)}
+                            />
+                            <input
+                                type="text"
+                                placeholder="Buy 0x..."
+                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-[10px] font-mono focus:border-neon-purple/50 outline-none placeholder:opacity-30"
+                                value={tokenOut}
+                                onChange={e => setTokenOut(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                            <label className="text-[8px] text-muted-foreground font-mono uppercase">Amount In</label>
+                            <input
+                                type="text"
+                                placeholder="0.0"
+                                className="w-full bg-black/40 border border-white/5 rounded-md px-2 py-1.5 text-[10px] font-mono focus:border-neon-purple/50 outline-none"
+                                value={amountIn}
+                                onChange={e => setAmountIn(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[8px] text-muted-foreground font-mono uppercase">Min Out</label>
+                            <input
+                                type="text"
+                                placeholder="0.0"
+                                className="w-full bg-black/40 border border-white/5 rounded-md px-2 py-1.5 text-[10px] font-mono focus:border-neon-purple/50 outline-none"
+                                value={minAmountOut}
+                                onChange={e => setMinAmountOut(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <Button
+                        type="submit"
+                        className="w-full bg-neon-purple/20 hover:bg-neon-purple/30 text-neon-purple border border-neon-purple/40 font-cyber text-[10px] tracking-[0.2em] h-8"
+                        disabled={!isConnected || isPending || isConfirming || isApproving}
+                    >
+                        {isPending || isConfirming ? 'SYNCING...' : needsApproval ? 'AUTHORIZE' : 'INITIATE ATTACK'}
+                    </Button>
+
+                    {(hash || isConfirmed || writeError) && (
+                        <div className="pt-2 border-t border-white/5">
+                            {isConfirmed ? (
+                                <p className="text-[8px] text-neon-green font-bold uppercase tracking-widest text-center animate-pulse">
+                                    ⚔️ LOGGED: Target neutralized
+                                </p>
+                            ) : writeError ? (
+                                <p className="text-[8px] text-red-400 font-mono text-center wrap-break-word">
+                                    ERR: {writeError.message.slice(0, 40)}...
+                                </p>
+                            ) : hash ? (
+                                <p className="text-[8px] text-muted-foreground font-mono text-center">
+                                    TX: {hash.slice(0, 12)}...
+                                </p>
+                            ) : null}
+                        </div>
+                    )}
+                </form>
+            </div>
+        )
     }
 
     if (variant === 'wide') {
