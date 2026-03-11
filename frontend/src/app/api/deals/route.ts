@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         const latestBlock = await client.getBlockNumber();
         const fromBlock = latestBlock > BigInt(45000) ? latestBlock - BigInt(45000) : BigInt(0);
 
-        const [fillLogs, cancelLogs] = await Promise.all([
+        const [fillLogs, cancelLogs, postedLogs] = await Promise.all([
             client.getLogs({
                 address: hookAddress,
                 event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
@@ -70,9 +70,15 @@ export async function GET(request: Request) {
                 address: hookAddress,
                 event: parseAbiItem('event OrderCancelled(uint256 indexed orderId, address indexed maker)'),
                 fromBlock: fromBlock
+            }),
+            client.getLogs({
+                address: hookAddress,
+                event: parseAbiItem('event OrderPosted(uint256 indexed orderId, address indexed maker, bool isHuman, uint128 amountIn, uint128 minAmountOut)'),
+                fromBlock: fromBlock
             })
         ]);
 
+        const latestBlocks: Record<string, any> = {};
         const winnersMap: Record<number, { taker: string, byAi: boolean }> = {};
         fillLogs.forEach(log => {
             if (log.args.orderId !== undefined) {
@@ -80,6 +86,24 @@ export async function GET(request: Request) {
                     taker: (log.args.taker as string).toLowerCase(),
                     byAi: !!log.args.byReactiveAi
                 };
+            }
+        });
+
+        const postedTimeMap: Record<number, number> = {};
+        const blockTimestampMap: Record<string, number> = {};
+
+        // Fetch timestamps for blocks
+        const uniqueBlocks = [...new Set(postedLogs.map(l => l.blockNumber))];
+        for (const b of uniqueBlocks) {
+            if (b) {
+                const block = await client.getBlock({ blockNumber: b });
+                blockTimestampMap[b.toString()] = Number(block.timestamp);
+            }
+        }
+
+        postedLogs.forEach(log => {
+            if (log.args.orderId !== undefined && log.blockNumber) {
+                postedTimeMap[Number(log.args.orderId)] = blockTimestampMap[log.blockNumber.toString()];
             }
         });
 
@@ -158,7 +182,10 @@ export async function GET(request: Request) {
                         ? (cancelsMap[i] ? 'cancelled' : 'completed') 
                         : (Date.now()/1000 > expiry ? 'expired' : 'active'),
                     profit: profit,
-                    createdAt: new Date(expiry * 1000 - 300 * 1000).toISOString(),
+                    // Use real event timestamp if available, otherwise fallback to estimation
+                    createdAt: postedTimeMap[i] 
+                        ? new Date(postedTimeMap[i] * 1000).toISOString() 
+                        : new Date(Math.min(expiry * 1000 - 300 * 1000, Date.now())).toISOString(),
                     // Meta for refunds
                     poolKey: {
                         currency0: orderData[8],

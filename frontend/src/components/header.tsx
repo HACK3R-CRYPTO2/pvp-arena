@@ -46,12 +46,8 @@ export function Header({ viewMode, onViewModeChange, onReset }: HeaderProps) {
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-4">
               <Link
-                href="/"
-                className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  alert("Arena Info: Post P2P limit orders on Unichain and challenge the Machine!");
-                }}
+                href="/about"
+                className="text-sm text-muted-foreground hover:text-neon-cyan transition-colors"
               >
                 About
               </Link>

@@ -27,40 +27,44 @@ export async function GET() {
         const startIndex = Math.max(0, count - 20);
 
         for (let i = startIndex; i < count; i++) {
-            const orderData = await client.readContract({
-                address: hookAddress,
-                abi: (ArenaHookABI as any).abi || ArenaHookABI,
-                functionName: 'orders',
-                args: [BigInt(i)],
-            }) as any;
+            try {
+                const orderData = await client.readContract({
+                    address: hookAddress,
+                    abi: (ArenaHookABI as any).abi || ArenaHookABI,
+                    functionName: 'orders',
+                    args: [BigInt(i)],
+                }) as any;
 
-            // viem returns an object if names are in ABI, or an array otherwise
-            // struct Order { address maker; bool sellToken0; uint128 amountIn; uint128 minAmountOut; uint256 expiry; bool active; ... }
-            const active = typeof orderData.active !== 'undefined' ? orderData.active : orderData[5];
+                if (!orderData) continue;
 
-            if (active) {
-                const maker = orderData.maker || orderData[0];
-                const sellToken0 = typeof orderData.sellToken0 !== 'undefined' ? orderData.sellToken0 : orderData[1];
-                const amountIn = (orderData.amountIn || orderData[2]).toString();
-                const minAmountOut = (orderData.minAmountOut || orderData[3]).toString();
-                const expiry = new Date(Number(orderData.expiry || orderData[4]) * 1000).toISOString();
-                
-                // Use currency addresses from the order struct to determine TKA/TKB
-                const currency0 = orderData.currency0 || orderData[8];
-                const currency1 = orderData.currency1 || orderData[9];
+                // viem returns an object if names are in ABI, or an array otherwise
+                // struct Order { address maker; bool sellToken0; uint128 amountIn; uint128 minAmountOut; uint256 expiry; bool active; ... }
+                const active = typeof orderData.active !== 'undefined' ? orderData.active : orderData[5];
 
-                orders.push({
-                    orderId: i,
-                    maker,
-                    sellToken0,
-                    amountIn,
-                    minAmountOut,
-                    expiry,
-                    active,
-                    isExpired: Number(orderData.expiry || orderData[4]) < Math.floor(Date.now() / 1000),
-                    sellToken: sellToken0 ? 'TKNA' : 'TKNB',
-                    buyToken: sellToken0 ? 'TKNB' : 'TKNA',
-                });
+                if (active) {
+                    const maker = orderData.maker || orderData[0];
+                    const sellToken0 = typeof orderData.sellToken0 !== 'undefined' ? orderData.sellToken0 : orderData[1];
+                    const amountIn = (orderData.amountIn || orderData[2]).toString();
+                    const minAmountOut = (orderData.minAmountOut || orderData[3]).toString();
+                    const expiryRaw = orderData.expiry || orderData[4];
+                    const expiry = new Date(Number(expiryRaw) * 1000).toISOString();
+                    
+                    orders.push({
+                        orderId: i,
+                        maker,
+                        sellToken0,
+                        amountIn,
+                        minAmountOut,
+                        expiry,
+                        active: true,
+                        isExpired: Number(expiryRaw) < Math.floor(Date.now() / 1000),
+                        sellToken: sellToken0 ? 'TKNA' : 'TKNB',
+                        buyToken: sellToken0 ? 'TKNB' : 'TKNA',
+                    });
+                }
+            } catch (orderError) {
+                console.error(`Skipping order #${i} due to fetch error:`, orderError);
+                continue;
             }
         }
 
