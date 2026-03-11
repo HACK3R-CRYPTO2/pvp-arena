@@ -118,65 +118,69 @@ export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBar
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       {/* Trades/Hour */}
-      <div className="glass-card rounded-xl p-4">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="glass-panel border border-white/10 bg-black/60 rounded-lg p-5 group hover:border-neon-purple/50 transition-all duration-300 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-neon-purple shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
+        <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-cyber tracking-[0.2em] mb-3 opacity-70 group-hover:opacity-100 transition-opacity">
+          <svg className="w-3.5 h-3.5 text-neon-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          <span>TRADES/HOUR</span>
+          <span>RATE/HOUR</span>
         </div>
-        <div className="font-mono font-semibold text-lg text-foreground">
+        <div className="font-mono font-bold text-2xl text-white tracking-tighter">
           {Math.round(stats.tradesPerHour)}
-          <span className="text-muted-foreground text-sm ml-2">trades</span>
+          <span className="text-[10px] ml-2 font-normal uppercase opacity-30 tracking-widest">unit</span>
         </div>
       </div>
 
       {/* Total Trades */}
-      <div className="glass-card rounded-xl p-4">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="glass-panel border border-white/10 bg-black/60 rounded-lg p-5 group hover:border-blue-400/50 transition-all duration-300 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.5)]" />
+        <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-cyber tracking-[0.2em] mb-3 opacity-70 group-hover:opacity-100 transition-opacity">
+          <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <span>TOTAL TRADES</span>
+          <span>MISSION COUNT</span>
         </div>
-        <div className="font-mono font-semibold text-lg text-foreground">
+        <div className="font-mono font-bold text-2xl text-white tracking-tighter">
           {Math.round(stats.totalTrades).toLocaleString()}
-          <span className="text-muted-foreground text-sm ml-2">({Math.round(stats.tradesPerHour)}/hr)</span>
+          <span className="text-[10px] ml-2 font-normal uppercase opacity-30 tracking-widest">ops</span>
         </div>
       </div>
 
       {/* LI.FI Swaps */}
-      <div className="glass-card rounded-xl p-4">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="glass-panel border border-white/10 bg-black/60 rounded-lg p-5 group hover:border-cyan-400/50 transition-all duration-300 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+        <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-cyber tracking-[0.2em] mb-3 opacity-70 group-hover:opacity-100 transition-opacity">
+          <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
-          <span>LI.FI SWAPS</span>
+          <span>LI.FI EXECS</span>
         </div>
-        <div className="font-mono font-semibold text-lg text-foreground">
-          {stats.lifiSwaps} <span className="text-muted-foreground text-sm">swaps</span>
+        <div className="font-mono font-bold text-2xl text-white tracking-tighter">
+          {stats.lifiSwaps} <span className="text-[10px] ml-1 font-normal uppercase opacity-30 tracking-widest">swps</span>
         </div>
       </div>
 
       {/* Total Volume → PNL when bot is selected */}
-      <div className="glass-card rounded-xl p-4">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="glass-panel border border-white/10 bg-black/60 rounded-lg p-5 group hover:border-emerald-500/50 transition-all duration-300 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+        <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-cyber tracking-[0.2em] mb-3 opacity-70 group-hover:opacity-100 transition-opacity">
+          <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
-          <span>{showPnl ? 'PNL' : 'TOTAL VOLUME'}</span>
+          <span>{showPnl ? 'PNL CAPTURE' : 'ARENA VOLUME'}</span>
         </div>
-        <div className="font-mono font-semibold text-lg text-foreground">
+        <div className="font-mono font-bold text-2xl text-white tracking-tighter">
           {showPnl ? (
             <>
-              <span className={pnlPositive ? 'text-green-500' : 'text-red-500'}>
-                {pnlPositive ? '+' : ''}{stats.totalPnl!.toLocaleString()}
+              <span className={pnlPositive ? 'text-emerald-400' : 'text-rose-500'}>
+                {pnlPositive ? '+' : ''}{Math.round(stats.totalPnl!).toLocaleString()}
               </span>
-              <span className="text-muted-foreground text-sm ml-1">USD</span>
+              <span className="text-[10px] ml-1 font-normal opacity-30 tracking-widest">USD</span>
             </>
           ) : (
             <>
-              ${Math.round(stats.totalVolume).toLocaleString()} <span className="text-muted-foreground text-sm">USDC</span>
+              ${Math.round(stats.totalVolume).toLocaleString()} <span className="text-[10px] font-normal opacity-30 uppercase tracking-widest leading-none">usdc</span>
             </>
           )}
         </div>
