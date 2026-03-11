@@ -101,6 +101,7 @@ export class ArenaService {
         console.log("------------------------------------------");
 
         await this.syncOrders();
+        await this.fundBots();
         this.listenForEvents();
         this.startBaitLoop();
     }
@@ -119,6 +120,48 @@ export class ArenaService {
             console.log(`📡 Linked to Hook at ${this.arenaHook.target}. Found ${this.activeOrders.size} active orders.`);
         } catch (e) {
             console.error("Failed to sync orders:", e);
+        }
+    }
+
+    private async fundBots() {
+        const bots = this.botService.getAllBots();
+        const alpha = bots.find(b => b.id === 1);
+        const beta = bots.find(b => b.id === 2);
+        
+        if (!alpha || !beta) return;
+
+        try {
+            const ethBalance = await this.provider.getBalance(beta.address);
+            if (ethBalance < ethers.parseEther("0.05")) {
+                console.log(`💰 [FUNDING] BetaSentinel is low on Gas. AlphaMachine sending 0.1 ETH...`);
+                const tx = await alpha.wallet.sendTransaction({
+                    to: beta.address,
+                    value: ethers.parseEther("0.1")
+                });
+                await tx.wait();
+            }
+
+            // Also ensure Beta has some TKNA/TKNB for baiting/sniping
+            const tknb = new ethers.Contract(CONFIG.L2_HOOK_ADDRESS, [ // Using hook address as proxy for finding tokens if they share same deployer or just hardcode if known
+                'function balanceOf(address) view returns (uint256)',
+                'function transfer(address, uint256) returns (bool)'
+            ], alpha.wallet);
+
+            // Hardcoded Token B address from README/Config
+            const TKNB_ADDR = "0xddee18b54cc13de0e9ec85b7affbb031cc46a7f1";
+            const tokenB = new ethers.Contract(TKNB_ADDR, [
+                'function balanceOf(address) view returns (uint256)',
+                'function transfer(address, uint256) returns (bool)'
+            ], alpha.wallet);
+
+            const betaTokenB = await (tokenB as any).balanceOf(beta.address);
+            if (betaTokenB < ethers.parseUnits("5", 18)) {
+                console.log(`💰 [FUNDING] BetaSentinel is low on TKNB. AlphaMachine sending 10 TKNB...`);
+                const tx = await (tokenB as any).transfer(beta.address, ethers.parseUnits("10", 18));
+                await tx.wait();
+            }
+        } catch (e) {
+            console.error("Funding check failed:", e);
         }
     }
 
@@ -252,11 +295,15 @@ export class ArenaService {
                     await approveTx.wait();
                 }
 
-                // Let the selected sniper execute its own transaction directly
-                const hookWithSniper = this.arenaHook.connect(sniper.wallet) as ethers.Contract;
+                // 5. Relayer Execution
+                // The ArenaHook strictly requires the 'sentinel' (Alpha) to call triggerOrder.
+                if (!alphaBot) return;
 
-                const tx = await (hookWithSniper as any).triggerOrder(orderId, sniper.id, sniper.address);
-                console.log(`🔫 [SNIPER] ${sniper.name} CRITICAL STRIKE! Tx: ${tx.hash}`);
+                const hookWithRelayer = this.arenaHook.connect(alphaBot.wallet) as ethers.Contract;
+
+                // triggerOrder(orderId, agentId, beneficiary)
+                const tx = await (hookWithRelayer as any).triggerOrder(orderId, sniper.id, sniper.address);
+                console.log(`🔫 [SNIPER] ${sniper.name} (via Alpha Relayer) CRITICAL STRIKE! Tx: ${tx.hash}`);
                 console.log(`🏆 Reputation Updated for ${sniper.name} (AgentID: ${sniper.id})`);
                 await tx.wait();
                 console.log(`✅ [SNIPER] ${sniper.name} successfully filled Order #${orderId}`);
