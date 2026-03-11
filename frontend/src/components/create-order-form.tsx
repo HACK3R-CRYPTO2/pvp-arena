@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { parseUnits, zeroAddress, erc20Abi } from 'viem'
 import ArenaHookABI from '@/abis/ArenaHook.json'
@@ -36,6 +36,20 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
         args: address ? [address, P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`] : undefined,
         query: { enabled: !!address && !!tokenIn && tokenIn.startsWith('0x') }
     })
+
+    // Automatically refetch allowance when an approval transaction confirms
+    useEffect(() => {
+        if (isConfirmed && lastTxType === 'approve') {
+            refetchAllowance()
+        }
+    }, [isConfirmed, lastTxType, refetchAllowance])
+
+    let needsApproval = false;
+    try {
+        if (tokenIn && tokenIn.startsWith('0x') && amountIn && Number(amountIn) > 0) {
+             needsApproval = !allowance || allowance < parseUnits(amountIn, 18);
+        }
+    } catch(e) {}
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -164,9 +178,9 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                         <Button
                             type="submit"
                             className="w-full bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/40 font-cyber text-xs tracking-wider"
-                            disabled={!isConnected || isPending || isApproving}
+                            disabled={!isConnected || isPending || isConfirming || isApproving}
                         >
-                            {isPending ? 'SYNCING...' : isApproving ? 'AUTH...' : 'DEPLOY'}
+                            {isPending || isConfirming ? 'SYNCING...' : needsApproval ? 'APPROVE' : 'DEPLOY'}
                         </Button>
                     </div>
 
@@ -260,9 +274,9 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                 <Button
                     type="submit"
                     className="w-full bg-neon-cyan/10 hover:bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50 mt-4"
-                    disabled={!isConnected || isPending || isApproving}
+                    disabled={!isConnected || isPending || isConfirming || isApproving}
                 >
-                    {isPending ? 'Confirming...' : isApproving ? 'Approving...' : (!allowance || allowance < parseUnits(amountIn || '0', 18)) ? 'Approve & Place Order' : 'Place Order'}
+                    {isPending || isConfirming ? 'Confirming...' : needsApproval ? 'Approve & Place Order' : 'Place Order'}
                 </Button>
 
                 {hash && (
@@ -279,7 +293,7 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                 )}
                 {isConfirmed && lastTxType === 'approve' && (
                     <div className="text-xs text-amber-500 mt-2 font-semibold">
-                        ✅ Approval Successful! Now click "Place Order" again to finalize.
+                        ✅ Approval Successful! Now click &quot;Place Order&quot; again to finalize.
                     </div>
                 )}
                 {isConfirmed && lastTxType === 'order' && (
