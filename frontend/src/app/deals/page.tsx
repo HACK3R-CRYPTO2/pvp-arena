@@ -67,7 +67,7 @@ function DealsContent() {
                 </div>
               </div>
 
-              <div className="p-2">
+              <div className="h-[600px] overflow-y-auto custom-scrollbar">
                 <DealsList viewMode={viewMode} botAddress={botAddress} limit={null} />
               </div>
             </div>
