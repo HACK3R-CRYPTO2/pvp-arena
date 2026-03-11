@@ -12,9 +12,10 @@ interface HeaderProps {
   viewMode?: ViewMode
   onViewModeChange?: (mode: ViewMode) => void
   onReset?: () => void
+  variant?: 'default' | 'sidebar'
 }
 
-export function Header({ viewMode, onViewModeChange, onReset }: HeaderProps) {
+export function Header({ viewMode, onViewModeChange, onReset, variant = 'default' }: HeaderProps) {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
@@ -26,6 +27,71 @@ export function Header({ viewMode, onViewModeChange, onReset }: HeaderProps) {
       e.preventDefault()
       onReset()
     }
+  }
+
+  if (variant === 'sidebar') {
+    return (
+      <div className="flex flex-col gap-6">
+        <Link href="/" onClick={handleLogoClick} className="flex items-center gap-3 hover:opacity-80">
+          <Image src="/logo-06-removebg-preview.png" alt="PvP Arena" width={40} height={40} className="rounded-lg shadow-[0_0_15px_rgba(139,92,246,0.2)]" />
+          <div>
+            <h1 className="text-lg font-bold font-cyber text-foreground leading-tight tracking-tight">
+              PvP Arena
+            </h1>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">
+              Battleground
+            </p>
+          </div>
+        </Link>
+
+        {/* Action Controls in Sidebar */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            {isConnected ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full font-mono text-xs border-white/10 bg-white/5 hover:bg-white/10 text-white"
+                onClick={() => disconnect()}
+              >
+                {address?.slice(0, 6)}...{address?.slice(-4)}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                className="w-full bg-linear-to-r from-neon-purple/80 to-neon-cyan/80 hover:from-neon-purple hover:to-neon-cyan text-white border-0 text-xs font-cyber"
+                onClick={() => connect({ connector: connectors[0] })}
+              >
+                Sync OS
+              </Button>
+            )}
+          </div>
+
+          {showToggle && (
+            <div className="flex flex-col bg-white/5 rounded-xl p-1 border border-white/5">
+              <button
+                onClick={() => onViewModeChange('bot-arena')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-cyber uppercase tracking-wider transition-all ${viewMode === 'bot-arena'
+                  ? 'bg-neon-purple text-white shadow-[0_0_10px_rgba(139,92,246,0.3)]'
+                  : 'text-muted-foreground hover:text-white'
+                  }`}
+              >
+                <span className="text-xs">🤖</span> Bot Arena
+              </button>
+              <button
+                onClick={() => onViewModeChange('pvp-arena')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-cyber uppercase tracking-wider transition-all ${viewMode === 'pvp-arena'
+                  ? 'bg-neon-cyan text-white shadow-[0_0_10px_rgba(34,211,238,0.3)]'
+                  : 'text-muted-foreground hover:text-white'
+                  }`}
+              >
+                <span className="text-xs">👤</span> PvP Arena
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

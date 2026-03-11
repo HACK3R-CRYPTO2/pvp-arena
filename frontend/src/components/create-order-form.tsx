@@ -7,7 +7,11 @@ import ArenaHookABI from '@/abis/ArenaHook.json'
 import { P2P_TRADING_ARENA_ADDRESSES } from '@/config/contracts'
 import { Button } from './ui/button'
 
-export function CreateOrderForm() {
+interface CreateOrderFormProps {
+    variant?: 'default' | 'wide'
+}
+
+export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
     const { address, isConnected } = useAccount()
     const { writeContract, data: hash, error: writeError, isPending } = useWriteContract()
     const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
@@ -90,6 +94,105 @@ export function CreateOrderForm() {
         } catch (err) {
             console.error("Order creation failed", err)
         }
+    }
+
+    if (variant === 'wide') {
+        return (
+            <div className="glass-panel p-6 rounded-2xl border border-neon-cyan/10 bg-linear-to-r from-neon-cyan/[0.02] to-transparent">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
+                    <div>
+                        <h3 className="font-cyber text-lg text-white flex items-center gap-2">
+                             Deploy Target Bait
+                        </h3>
+                        <p className="text-xs text-muted-foreground">Post a P2P order to Unichain Sepolia</p>
+                    </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                    <div className="md:col-span-1 space-y-1.5">
+                        <label className="text-[10px] text-muted-foreground font-cyber uppercase">Sell</label>
+                        <input
+                            type="text"
+                            placeholder="0x..."
+                            className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs font-mono focus:border-neon-cyan/50 outline-none"
+                            value={tokenIn}
+                            onChange={e => setTokenIn(e.target.value)}
+                        />
+                    </div>
+                    <div className="md:col-span-1 space-y-1.5">
+                        <label className="text-[10px] text-muted-foreground font-cyber uppercase">Buy</label>
+                        <input
+                            type="text"
+                            placeholder="0x..."
+                            className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs font-mono focus:border-neon-cyan/50 outline-none"
+                            value={tokenOut}
+                            onChange={e => setTokenOut(e.target.value)}
+                        />
+                    </div>
+                    <div className="md:col-span-1 space-y-1.5">
+                        <label className="text-[10px] text-muted-foreground font-cyber uppercase">Amount</label>
+                        <input
+                            type="text"
+                            placeholder="0.0"
+                            className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs font-mono focus:border-neon-cyan/50 outline-none"
+                            value={amountIn}
+                            onChange={e => setAmountIn(e.target.value)}
+                        />
+                    </div>
+                    <div className="md:col-span-1 space-y-1.5">
+                        <label className="text-[10px] text-muted-foreground font-cyber uppercase">Min Out</label>
+                        <input
+                            type="text"
+                            placeholder="0.0"
+                            className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs font-mono focus:border-neon-cyan/50 outline-none"
+                            value={minAmountOut}
+                            onChange={e => setMinAmountOut(e.target.value)}
+                        />
+                    </div>
+                    <div className="md:col-span-1 space-y-1.5">
+                        <label className="text-[10px] text-muted-foreground font-cyber uppercase">TTL (Sec)</label>
+                        <input
+                            type="number"
+                            placeholder="3600"
+                            className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs font-mono focus:border-neon-cyan/50 outline-none"
+                            value={duration}
+                            onChange={e => setDuration(e.target.value)}
+                        />
+                    </div>
+                    
+                    <div className="md:col-span-1">
+                        <Button
+                            type="submit"
+                            className="w-full bg-neon-cyan/20 hover:bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/40 font-cyber text-xs tracking-wider"
+                            disabled={!isConnected || isPending || isApproving}
+                        >
+                            {isPending ? 'SYNCING...' : isApproving ? 'AUTH...' : 'DEPLOY'}
+                        </Button>
+                    </div>
+
+                    {/* Status/Receipt Overlay (Integrated) */}
+                    {(hash || isConfirmed || writeError) && (
+                         <div className="md:col-span-6 mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                            <div className="flex gap-4">
+                                {hash && (
+                                    <span className="text-[10px] text-muted-foreground font-mono">
+                                        TX: <a href={`https://unichain-sepolia.blockscout.com/tx/${hash}`} target="_blank" className="text-neon-cyan underline">{hash.slice(0, 10)}...</a>
+                                    </span>
+                                )}
+                                {isConfirmed && (
+                                    <span className="text-[10px] text-neon-green font-bold uppercase tracking-widest animate-pulse">
+                                        ⚔️ Target Neutralized
+                                    </span>
+                                )}
+                            </div>
+                            {writeError && (
+                                <span className="text-[10px] text-red-400 font-mono">FAIL: {writeError.message.slice(0, 30)}...</span>
+                            )}
+                         </div>
+                    )}
+                </form>
+            </div>
+        )
     }
 
     return (

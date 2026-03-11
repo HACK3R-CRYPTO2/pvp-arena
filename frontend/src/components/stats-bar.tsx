@@ -16,9 +16,10 @@ interface Stats {
 interface StatsBarProps {
   viewMode: ViewMode
   botAddress?: string | null
+  variant?: 'default' | 'compact'
 }
 
-export function StatsBar({ viewMode, botAddress }: StatsBarProps) {
+export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBarProps) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -31,8 +32,6 @@ export function StatsBar({ viewMode, botAddress }: StatsBarProps) {
         const res = await api.get(`/api/deals/stats?${params.toString()}`)
         const s = res.data.stats
 
-        // Apply viewMode filter for display purposes
-        // (backend returns totals; p2p filter is client-side for now)
         setStats({
           totalTrades: s.totalTrades,
           tradesPerHour: s.tradesPerHour,
@@ -55,11 +54,11 @@ export function StatsBar({ viewMode, botAddress }: StatsBarProps) {
 
   if (loading || !stats) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="glass-card rounded-xl p-4 animate-pulse">
-            <div className="h-4 bg-muted rounded w-20 mb-2"></div>
-            <div className="h-6 bg-muted rounded w-32"></div>
+      <div className={`flex items-center gap-4 ${variant === 'compact' ? '' : 'mb-8'}`}>
+        {[...Array(variant === 'compact' ? 3 : 4)].map((_, i) => (
+          <div key={i} className={`glass-card rounded-xl animate-pulse ${variant === 'compact' ? 'px-3 py-1.5' : 'p-4'}`}>
+            <div className="h-2 bg-muted rounded w-12 mb-1"></div>
+            <div className="h-3 bg-muted rounded w-16"></div>
           </div>
         ))}
       </div>
@@ -68,6 +67,53 @@ export function StatsBar({ viewMode, botAddress }: StatsBarProps) {
 
   const showPnl = botAddress && stats.totalPnl !== null && stats.totalPnl !== undefined
   const pnlPositive = showPnl && stats.totalPnl! >= 0
+
+  if (variant === 'compact') {
+    return (
+      <div className="flex items-center gap-6 overflow-hidden">
+         {/* Trades Metric */}
+        <div className="flex flex-col group transition-all">
+          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">Volume</span>
+          <div className="flex items-baseline gap-1">
+             <span className="text-sm font-mono font-bold text-foreground">
+               {Math.round(stats.totalTrades).toLocaleString()}
+             </span>
+             <span className="text-[10px] text-muted-foreground/60">TRDS</span>
+          </div>
+        </div>
+
+        <div className="h-6 w-px bg-white/5" />
+
+        {/* Swap Metric */}
+        <div className="flex flex-col group transition-all">
+          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">Lifi</span>
+          <div className="flex items-baseline gap-1">
+             <span className="text-sm font-mono font-bold text-foreground">{stats.lifiSwaps}</span>
+             <span className="text-[10px] text-muted-foreground/60">SWPS</span>
+          </div>
+        </div>
+
+        <div className="h-6 w-px bg-white/5" />
+
+        {/* Value Metric */}
+        <div className="flex flex-col group transition-all">
+          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">{showPnl ? 'PNL' : 'TOTAL'}</span>
+          <div className="flex items-baseline gap-1">
+             {showPnl ? (
+                <span className={`text-sm font-mono font-bold ${pnlPositive ? 'text-neon-green' : 'text-red-400'}`}>
+                  {pnlPositive ? '+' : ''}{stats.totalPnl!.toLocaleString()}
+                </span>
+             ) : (
+                <span className="text-sm font-mono font-bold text-foreground">
+                  ${Math.round(stats.totalVolume).toLocaleString()}
+                </span>
+             )}
+             <span className="text-[10px] text-muted-foreground/60">USD</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

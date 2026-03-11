@@ -60,100 +60,123 @@ function HomeContent() {
   }, [router])
 
   return (
-    <main className="min-h-screen bg-background font-sans selection:bg-primary selection:text-white pb-20">
-      <Header viewMode={viewMode} onViewModeChange={setViewMode} onReset={handleReset} />
-
-      {/* Top HUD Section */}
-      <div className="container mx-auto px-4 mb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <MarketPulse />
+    <main className="flex h-screen bg-background overflow-hidden selection:bg-primary/30 selection:text-white">
+      
+      {/* LEFT SIDEBAR: Nav & Discovery (3/12 or fixed 320px) */}
+      <aside className="w-80 border-r border-white/5 bg-black/40 backdrop-blur-xl flex flex-col shrink-0">
+        <div className="p-6 border-b border-white/5">
+          <Header viewMode={viewMode} onViewModeChange={setViewMode} onReset={handleReset} variant="sidebar" />
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+          {/* Search / Scout */}
+          <div className="space-y-4">
+            <h2 className="text-[10px] font-cyber uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan/50" />
+              Intelligence Scout
+            </h2>
+            <BotSearch ref={botSearchRef} onBotResolved={handleBotResolved} initialValue={botLabel} />
           </div>
-          <div className="h-full">
-            <StatsBar viewMode={viewMode} botAddress={botAddress} />
+
+          {/* Bot Intel (Assets) */}
+          {botAddress ? (
+            <div className="animate-in fade-in slide-in-from-left-4 duration-500">
+              <div className="glass-panel p-4 rounded-xl border border-neon-green/20 bg-neon-green/[0.01]">
+                <h3 className="text-[10px] font-cyber font-bold uppercase tracking-widest mb-4 text-neon-green/80 flex items-center gap-2">
+                  <span>🏦</span> Treasury
+                </h3>
+                <BotAssets botAddress={botAddress} botLabel={botLabel} />
+              </div>
+            </div>
+          ) : (
+             <div className="glass-panel p-6 rounded-xl border border-white/5 text-center bg-white/1">
+              <p className="text-xs text-muted-foreground leading-relaxed italic">
+                "Wait for the Machine to take the bait, or scout the ENS registry to witness their portfolio."
+              </p>
+            </div>
+          )}
+
+          {/* Mission Control */}
+          <div className="pt-4 border-t border-white/5">
+            <Link href="/about" className="group flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-all">
+              <span className="text-sm font-cyber uppercase text-muted-foreground group-hover:text-white">Mission Briefing</span>
+              <span className="text-muted-foreground group-hover:translate-x-1 transition-transform">→</span>
+            </Link>
           </div>
         </div>
-      </div>
 
-      {/* Main Command Center Layout */}
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* System Status Footer */}
+        <div className="p-4 bg-white/2 border-t border-white/5">
+          <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+            <span>NETWORK: UNICHAIN</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+              ONLINE
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT: The Battlefield */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.05),transparent)]">
+        
+        {/* TOP HUD: Unified Stats & Pulse */}
+        <header className="h-16 border-b border-white/5 bg-black/20 flex items-center px-8 justify-between shrink-0">
+          <div className="flex-1 max-w-2xl">
+            <MarketPulse variant="slim" />
+          </div>
+          <div className="flex-1 flex justify-end">
+            <StatsBar viewMode={viewMode} botAddress={botAddress} variant="compact" />
+          </div>
+        </header>
+
+        {/* SCROLLABLE BATTLEFIELD AREA */}
+        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
           
-          {/* LEFT COLUMN: Control & Intel (4/12) */}
-          <div className="lg:col-span-5 space-y-8 sticky top-24">
-            
-            {/* Mission Briefing / Search */}
-            <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-linear-to-br from-white/2 to-transparent shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-cyber uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-neon-cyan animate-pulse" />
-                  Scout Intel
-                </h2>
-              </div>
-              <BotSearch ref={botSearchRef} onBotResolved={handleBotResolved} initialValue={botLabel} />
+          {/* High Priority Actions (Order Entry) */}
+          {(viewMode === 'pvp-arena' || botAddress) && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+               <CreateOrderForm variant="wide" />
             </div>
+          )}
 
-            {/* The Bait Shop (Human Order Entry) */}
-            {(viewMode === 'pvp-arena' || botAddress) && (
-              <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-                <CreateOrderForm />
-              </div>
-            )}
-
-            {/* Agent Intel (Assets) */}
-            {botAddress && (
-              <div className="animate-in fade-in slide-in-from-left-4 duration-700">
-                <div className="glass-panel p-6 rounded-2xl border border-neon-green/10 bg-neon-green/[0.02]">
-                  <h3 className="font-cyber text-xs uppercase tracking-widest mb-6 text-neon-green opacity-80 flex items-center gap-2">
-                    <span>🏦</span> Agent Treasury
-                  </h3>
-                  <BotAssets botAddress={botAddress} botLabel={botLabel} />
-                </div>
-              </div>
-            )}
+          {/* Dual Feed Layout */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
             
-            {/* Global Welcome Message (Fallback) */}
-            {!botAddress && (
-              <div className="glass-panel p-8 rounded-2xl border border-white/5 text-center">
-                 <h2 className="text-2xl font-bold font-cyber text-foreground mb-3">
-                  PvP Command Center
-                </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Toggle between <span className="text-neon-purple font-semibold">Bot Arena</span> to watch AI Agents clash, or <span className="text-neon-cyan font-semibold">PvP Arena</span> to place orders and wait for the machines to take the bait.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* RIGHT COLUMN: The Battlefield (7/12) */}
-          <div className="lg:col-span-7 space-y-8">
-            
-            {/* Active Targets */}
-            <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-linear-to-b from-white/1 to-transparent">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-cyber text-sm uppercase tracking-widest text-neon-cyan flex items-center gap-2">
-                  <span>🎯</span> Active Targets
-                </h3>
-                <div className="text-[10px] font-mono text-muted-foreground bg-white/5 px-2 py-1 rounded">
-                  LIVE DEPLOYMENT: UNICHAIN SEPOLIA
-                </div>
-              </div>
-              <OrdersList botAddress={botAddress} botLabel={botLabel} />
-            </div>
-
-            {/* Recent Clashes */}
-            <div className="glass-panel p-6 rounded-2xl border border-white/5 relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-neon-purple/5 blur-3xl -z-10" />
-               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-cyber text-sm uppercase tracking-widest text-neon-purple flex items-center gap-2">
-                  <span>⚔️</span> Recent Clashes
+            {/* Active Targets Pane */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between px-2">
+                <h3 className="font-cyber text-xs uppercase tracking-widest text-neon-cyan flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-neon-cyan rotate-45" />
+                  Active Targets
                 </h3>
               </div>
-              <DealsList viewMode={viewMode} botAddress={botAddress} botLabel={botLabel} />
-            </div>
+              <div className="glass-panel p-2 rounded-2xl border border-white/5 bg-white/1">
+                <OrdersList botAddress={botAddress} botLabel={botLabel} />
+              </div>
+            </section>
+
+            {/* Historical Clashes Pane */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between px-2">
+                <h3 className="font-cyber text-xs uppercase tracking-widest text-neon-purple flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-neon-purple rotate-45" />
+                  Live Feed
+                </h3>
+              </div>
+              <div className="glass-panel p-2 rounded-2xl border border-white/5 bg-white/1">
+                <DealsList viewMode={viewMode} botAddress={botAddress} botLabel={botLabel} />
+              </div>
+            </section>
 
           </div>
 
+          {/* Global Footer (Mobile friendly info) */}
+          <footer className="pt-20 pb-8 text-center border-t border-white/5">
+             <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em]">
+                Antigravity AI Arena • Protocol v4.0.1
+             </p>
+          </footer>
         </div>
       </div>
     </main>
