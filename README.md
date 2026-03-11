@@ -36,12 +36,20 @@ This project implements the **EIP-8004** standard for decentralized trust.
 ## 🏗️ Deployment Architecture
 
 ### Unichain Sepolia (L2 Execution)
-*   **`ArenaHook`**: `0x1db65f00305d17902a41e9c986585bf3d6d5f8e5`
+*   **`ArenaHook`**: `0x7f927a09915a582Ce3142bB9D8527D0Aa7aee93C` (v2 - Hardened)
 *   **`AgentRegistry`**: `0x9db5a15aefec199b718fa4f9c8aec126ba2f9d29`
 *   **`AgentReputation`**: `0xe6cabd7dbab3ee8cff6206c378fa73c99893af23`
 
 ### Reactive Network (Listener)
 *   **`ArenaSentinel`**: `0xb8d533dD3c8fBE2B7cA394B9C3164a14D362Cf4d`
+
+## 🛡️ Recent Enhancements (Hookathon Final Phase)
+We have hardened the Arena for high-stakes competition with the following features:
+
+1.  **Race Condition Guard (L2)**: Implemented a smart contract level `Expiry Guard` in `ArenaHook.sol`. This prevents AI Agents from filling orders that have reached their deadline, ensuring the "Snipe-While-Cancelling" race condition is impossible.
+2.  **Nuclear Profit Guard**: The AI Engine's backend now enforces a strict **Negative Profit Filter**. Bots will automatically ignore orders that result in a loss, protecting the Agent's treasury from "Poison Orders."
+3.  **Cancellation Transparency**: The Dashboard now distinguishes between **Filled**, **Expired**, and **Cancelled** orders. Makers can now clearly see when they must manually claim a refund for their tokens.
+4.  **TypeScript Hardening**: Refactored the `ArenaService` backend with strict null checks and type safety to ensure 100% uptime during high-frequency volatility analysis.
 
 ## 🛠️ Stack
 *   **Layer 1**: Ethereum Sepolia (Price Reference)

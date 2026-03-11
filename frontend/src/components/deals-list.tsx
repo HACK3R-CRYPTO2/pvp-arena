@@ -4,7 +4,11 @@ import { api } from '@/lib/api'
 import { formatTokenAmount } from '@/lib/format'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useAccount, useWriteContract } from 'wagmi'
 import { useAgentIdentity, useAgentReputation } from '@/hooks/use-agent-identity'
+import { Button } from './ui/button'
+import ArenaHookABI from '@/abis/ArenaHook.json'
+import { P2P_TRADING_ARENA_ADDRESSES } from '@/config/contracts'
 
 export type ViewMode = 'bot-arena' | 'pvp-arena'
 
@@ -30,6 +34,13 @@ interface Deal {
   winnerIsAi?: boolean
   isHumanMaker?: boolean
   createdAt: string
+  poolKey?: {
+    currency0: string
+    currency1: string
+    fee: number
+    tickSpacing: number
+    hooks: string
+  }
 }
 
 interface DealsListProps {
@@ -108,6 +119,8 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
     const { score } = useAgentReputation(agentId)
 
     const isCompleted = deal.status === 'completed'
+    const isCancelled = deal.status === 'cancelled'
+    const isExpired = deal.status === 'expired'
 
     // Final Logic for Name Resolution: 
     const resolvedWinnerName = deal.winnerIsAi 
@@ -125,11 +138,46 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
     const profitVal = deal.profit ? parseFloat(deal.profit) : null;
     const isProfitPositive = profitVal !== null && profitVal >= 0;
 
+    const { address: connectedAddress } = useAccount();
+    const [localError, setLocalError] = useState<string | null>(null);
+
+    const { writeContract, isPending: isRefunding, error: writeErr } = useWriteContract();
+
+    const canRefund = deal.status === 'expired' && 
+                     connectedAddress?.toLowerCase() === deal.makerAddress?.toLowerCase();
+
+    const handleRefund = async () => {
+      setLocalError(null);
+
+      if (!deal.poolKey) {
+        setLocalError("Missing contract data");
+        return;
+      }
+      
+      try {
+        writeContract({
+          address: P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`,
+          abi: (ArenaHookABI as any).abi || ArenaHookABI,
+          functionName: 'cancelOrder',
+          args: [
+            BigInt(deal.id),
+            deal.poolKey
+          ]
+        }, {
+          onError: (err) => {
+            setLocalError(err.message.slice(0, 100));
+          }
+        });
+      } catch (e: any) {
+        setLocalError(e.message);
+      }
+    };
+
     return (
       <div className={`block px-2 py-3 hover:bg-white/5 transition-colors rounded border-b border-white/5 last:border-0 cursor-default ${deal.isInternalClash ? 'opacity-80' : ''}`}>
         <div className="flex items-center gap-4">
-          <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center text-xs font-bold ${deal.status === 'completed' ? 'bg-green-500/20 text-green-500' : deal.status === 'failed' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
-            {deal.status === 'completed' ? '✓' : deal.status === 'failed' ? '✗' : '⏳'}
+          <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center text-xs font-bold ${deal.status === 'completed' ? 'bg-green-500/20 text-green-500' : deal.status === 'failed' || deal.status === 'cancelled' ? 'bg-red-500/20 text-red-500' : deal.status === 'expired' ? 'bg-orange-500/20 text-orange-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+            {deal.status === 'completed' ? '✓' : deal.status === 'failed' || deal.status === 'cancelled' ? '✗' : deal.status === 'expired' ? '⌛' : '⏳'}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -145,7 +193,7 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
                   {deal.isInternalClash ? 'Node Balance' : `Trust Score: ${score}%`}
                 </span>
               )}
-              {deal.profit && (
+              {deal.profit && isCompleted && (
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-mono animate-pulse ${isProfitPositive ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
                   Capture: {isProfitPositive ? '+' : '-'}${Math.abs(parseFloat(deal.profit)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </span>
@@ -163,6 +211,22 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
                   <span className="text-muted-foreground">
                     {resolvedMakerName}
                   </span>
+                </>
+              ) : isCancelled ? (
+                <>
+                  <span className="text-red-400 font-bold text-[10px] uppercase tracking-wider">STATUS:</span>
+                  <span className="text-red-400 font-bold">CANCELLED / REFUNDED</span>
+                  <span className="text-[10px] opacity-50">by</span>
+                  <span className="text-muted-foreground">
+                    {resolvedMakerName}
+                  </span>
+                </>
+              ) : isExpired ? (
+                <>
+                  <span className="text-orange-400 font-bold text-[10px] uppercase tracking-wider">STATUS:</span>
+                  <span className="text-orange-400 font-bold">EXPIRED</span>
+                  <span className="text-muted-foreground ml-2">Maker: {resolvedMakerName}</span>
+                  <span className="italic opacity-70 text-[10px] ml-1">(Claim Refund Below)</span>
                 </>
               ) : (
                 <>
@@ -185,6 +249,23 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
             <div className="text-xs text-muted-foreground">
               → {deal.toAmount ? formatTokenAmount(deal.toAmount, deal.toTokenDecimals) : '...'} {deal.toToken}
             </div>
+            {canRefund && (
+              <div className="flex flex-col items-end">
+                <Button 
+                  onClick={(e) => { e.stopPropagation(); handleRefund(); }}
+                  disabled={isRefunding}
+                  size="sm"
+                  className="mt-2 h-6 text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30"
+                >
+                  {isRefunding ? '...' : 'CLAIM REFUND'}
+                </Button>
+                {(localError || writeErr) && (
+                  <span className="text-[9px] text-red-400 mt-1 max-w-[120px] text-right wrap-break-word">
+                    Error: {localError || writeErr?.message.slice(0, 50)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

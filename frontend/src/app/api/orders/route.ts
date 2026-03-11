@@ -34,19 +34,32 @@ export async function GET() {
                 args: [BigInt(i)],
             }) as any;
 
+            // viem returns an object if names are in ABI, or an array otherwise
             // struct Order { address maker; bool sellToken0; uint128 amountIn; uint128 minAmountOut; uint256 expiry; bool active; ... }
-            if (orderData[5]) { // active
+            const active = typeof orderData.active !== 'undefined' ? orderData.active : orderData[5];
+
+            if (active) {
+                const maker = orderData.maker || orderData[0];
+                const sellToken0 = typeof orderData.sellToken0 !== 'undefined' ? orderData.sellToken0 : orderData[1];
+                const amountIn = (orderData.amountIn || orderData[2]).toString();
+                const minAmountOut = (orderData.minAmountOut || orderData[3]).toString();
+                const expiry = new Date(Number(orderData.expiry || orderData[4]) * 1000).toISOString();
+                
+                // Use currency addresses from the order struct to determine TKA/TKB
+                const currency0 = orderData.currency0 || orderData[8];
+                const currency1 = orderData.currency1 || orderData[9];
+
                 orders.push({
                     orderId: i,
-                    maker: orderData[0],
-                    sellToken0: orderData[1],
-                    amountIn: orderData[2].toString(),
-                    minAmountOut: orderData[3].toString(),
-                    expiry: new Date(Number(orderData[4]) * 1000).toISOString(),
-                    active: orderData[5],
-                    isExpired: Number(orderData[4]) < Math.floor(Date.now() / 1000),
-                    sellToken: orderData[1] ? 'TOKEN0' : 'TOKEN1', // Placeholder names
-                    buyToken: orderData[1] ? 'TOKEN1' : 'TOKEN0',
+                    maker,
+                    sellToken0,
+                    amountIn,
+                    minAmountOut,
+                    expiry,
+                    active,
+                    isExpired: Number(orderData.expiry || orderData[4]) < Math.floor(Date.now() / 1000),
+                    sellToken: sellToken0 ? 'TKNA' : 'TKNB',
+                    buyToken: sellToken0 ? 'TKNB' : 'TKNA',
                 });
             }
         }

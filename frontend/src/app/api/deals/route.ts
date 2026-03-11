@@ -60,11 +60,18 @@ export async function GET(request: Request) {
         const latestBlock = await client.getBlockNumber();
         const fromBlock = latestBlock > BigInt(45000) ? latestBlock - BigInt(45000) : BigInt(0);
 
-        const fillLogs = await client.getLogs({
-            address: hookAddress,
-            event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
-            fromBlock: fromBlock
-        });
+        const [fillLogs, cancelLogs] = await Promise.all([
+            client.getLogs({
+                address: hookAddress,
+                event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
+                fromBlock: fromBlock
+            }),
+            client.getLogs({
+                address: hookAddress,
+                event: parseAbiItem('event OrderCancelled(uint256 indexed orderId, address indexed maker)'),
+                fromBlock: fromBlock
+            })
+        ]);
 
         const winnersMap: Record<number, { taker: string, byAi: boolean }> = {};
         fillLogs.forEach(log => {
@@ -73,6 +80,13 @@ export async function GET(request: Request) {
                     taker: (log.args.taker as string).toLowerCase(),
                     byAi: !!log.args.byReactiveAi
                 };
+            }
+        });
+
+        const cancelsMap: Record<number, boolean> = {};
+        cancelLogs.forEach(log => {
+            if (log.args.orderId !== undefined) {
+                cancelsMap[Number(log.args.orderId)] = true;
             }
         });
 
@@ -140,9 +154,19 @@ export async function GET(request: Request) {
                     isHumanMaker: isHumanMaker,
                     agentId: agentId,
                     isInternalClash: isInternalClash,
-                    status: isCompleted ? 'completed' : (Date.now()/1000 > expiry ? 'expired' : 'active'),
-                    profit: profit, // Now returns numeric string (can be negative)
+                    status: isCompleted 
+                        ? (cancelsMap[i] ? 'cancelled' : 'completed') 
+                        : (Date.now()/1000 > expiry ? 'expired' : 'active'),
+                    profit: profit,
                     createdAt: new Date(expiry * 1000 - 300 * 1000).toISOString(),
+                    // Meta for refunds
+                    poolKey: {
+                        currency0: orderData[8],
+                        currency1: orderData[9],
+                        fee: 3000,
+                        tickSpacing: 60,
+                        hooks: hookAddress
+                    }
                 });
             } catch (orderErr) {
                 // Skip

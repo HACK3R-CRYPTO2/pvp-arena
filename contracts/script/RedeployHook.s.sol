@@ -12,8 +12,7 @@ contract RedeployHook is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // Reusing existing PoolManager and Reputation Registry addresses
-        // Based on previously logged addresses
-        address poolManager = 0x47e174A7B973c1D40dc78028717d23F3607fc88a;
+        address poolManager = 0xB65B40FC59d754Ff08Dacd0c2257F1E2a5a2eE38;
         address reputation = 0xe6cAbd7dbaB3ee8Cff6206C378fa73C99893Af23;
 
         // Deploy fresh Hook with the fix

@@ -73,6 +73,7 @@ contract ArenaHook is IHooks, ReentrancyGuard {
     error InvalidAmounts();
     error AmountOverflow();
     error PoolMismatch();
+    error AlreadyExpired();
 
     uint256 public constant MAX_ITERATIONS = 50;
 
@@ -204,6 +205,7 @@ contract ArenaHook is IHooks, ReentrancyGuard {
     ) external onlySentinel nonReentrant {
         Order storage order = orders[orderId];
         if (!order.active) revert OrderNotActive();
+        if (block.timestamp > order.expiry) revert AlreadyExpired(); // Precise Expiry Guard
 
         // EIP-8004: Validation (Optional but good practice)
         // For Hackathon Demo: Bypass registry check for Sentinel execution

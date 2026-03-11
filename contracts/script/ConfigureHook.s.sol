@@ -10,7 +10,7 @@ contract ConfigureHook is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         // Configuration
-        address hookAddress = 0x2920EF802075BfBEfA337624bd3268B909C2b3E8; // Deployed ArenaHook
+        address hookAddress = 0x7f927a09915a582Ce3142bB9D8527D0Aa7aee93C; // New Hardened ArenaHook
         address sentinelAddress = 0xd2df53D9791e98Db221842Dd085F4144014BBE2a; // Agent Wallet for Demo execution
 
         vm.startBroadcast(deployerPrivateKey);
