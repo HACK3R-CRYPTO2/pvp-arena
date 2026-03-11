@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, http, parseAbiItem } from 'viem';
+import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { unichainSepolia } from 'viem/chains';
 import ArenaHookABI from '@/abis/ArenaHook.json';
 import AgentRegistryABI from '@/abis/AgentRegistry.json';
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
             ALPHA_ADDRESS = alphaAddr.toLowerCase();
             BETA_ADDRESS = betaAddr.toLowerCase();
         } catch (botErr) {
-            ALPHA_ADDRESS = '0xd2df53d9791e98db221842dd085f4144014bbe2a'.toLowerCase();
+            ALPHA_ADDRESS = '0xd2df53d9791e98db221842dd885f4144014bbe2a'.toLowerCase();
             BETA_ADDRESS = '0x84a78a6f73ac2b74c457965f38f3afac9a34a6cc'.toLowerCase();
         }
 
@@ -51,22 +51,17 @@ export async function GET(request: Request) {
         }) as bigint;
 
         const count = Number(nextOrderIdRaw);
-        const deals = [];
 
-        // Fetch last 15 orders
-        const startIndex = Math.max(0, count - 15);
-
-        // Pre-fetch OrderFilled events to find real winners
+        // Unified search range: 40,000 blocks (~11 hours)
+        // This is safe under the 50,000 block public RPC limit
         const latestBlock = await client.getBlockNumber();
-        const fromBlock = latestBlock > BigInt(10000) ? latestBlock - BigInt(10000) : BigInt(0);
-        // Specifically for fills, we look back further (50k blocks ~= 14 hours) to identify old snipers
-        const fillFromBlock = latestBlock > BigInt(50000) ? latestBlock - BigInt(50000) : BigInt(0);
+        const fromBlock = latestBlock > BigInt(40000) ? latestBlock - BigInt(40000) : BigInt(0);
 
         const [fillLogs, cancelLogs, postedLogs] = await Promise.all([
             client.getLogs({
                 address: hookAddress,
                 event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
-                fromBlock: fillFromBlock
+                fromBlock: fromBlock
             }),
             client.getLogs({
                 address: hookAddress,
@@ -80,83 +75,76 @@ export async function GET(request: Request) {
             })
         ]);
 
-        const latestBlocks: Record<string, any> = {};
-        const winnersMap: Record<number, { taker: string, byAi: boolean }> = {};
-        fillLogs.forEach(log => {
-            if (log.args.orderId !== undefined) {
-                winnersMap[Number(log.args.orderId)] = {
-                    taker: (log.args.taker as string).toLowerCase(),
-                    byAi: !!log.args.byReactiveAi
-                };
-            }
+        const fillMap: Record<number, { taker: string, byAi: boolean }> = {};
+        fillLogs.forEach(l => {
+            fillMap[Number(l.args.orderId)] = { 
+                taker: (l.args.taker as string).toLowerCase(),
+                byAi: !!l.args.byReactiveAi
+            };
         });
 
-        const postedTimeMap: Record<number, number> = {};
-        const blockTimestampMap: Record<string, number> = {};
-
-        // Fetch timestamps for only the last 5 unique blocks
-        const uniqueBlocks = [...new Set(postedLogs.map(l => l.blockNumber))].slice(-5);
-        for (const b of uniqueBlocks) {
-            if (b) {
-                try {
-                    const block = await client.getBlock({ blockNumber: b });
-                    blockTimestampMap[b.toString()] = Number(block.timestamp);
-                } catch (e) {
-                    // Ignore transient block fetch errors
-                }
-            }
-        }
-
-        postedLogs.forEach(log => {
-            if (log.args.orderId !== undefined && log.blockNumber) {
-                postedTimeMap[Number(log.args.orderId)] = blockTimestampMap[log.blockNumber.toString()];
-            }
+        const cancelsMap: Record<number, string> = {};
+        cancelLogs.forEach(l => {
+            cancelsMap[Number(l.args.orderId)] = (l.args.maker as string).toLowerCase();
         });
 
-        const cancelsMap: Record<number, boolean> = {};
-        cancelLogs.forEach(log => {
-            if (log.args.orderId !== undefined) {
-                cancelsMap[Number(log.args.orderId)] = true;
-            }
-        });
+        const deals: any[] = [];
+        
+        // Use all available IDs to reconstruct history
+        const allIds = new Set([
+            ...fillLogs.map(l => Number(l.args.orderId)),
+            ...cancelLogs.map(l => Number(l.args.orderId)),
+            ...postedLogs.map(l => Number(l.args.orderId))
+        ]);
 
-        for (let i = startIndex; i < count; i++) {
+        const sortedIds = Array.from(allIds).sort((a, b) => b - a);
+
+        for (const i of sortedIds) {
             try {
-                const orderData = await client.readContract({
-                    address: hookAddress,
-                    abi: (ArenaHookABI as any).abi || ArenaHookABI,
-                    functionName: 'orders',
-                    args: [BigInt(i)],
-                }) as any;
+                const post = postedLogs.find(l => Number(l.args.orderId) === i);
+                const fill = fillMap[i];
+                const cancel = cancelsMap[i];
+                
+                let orderData: any;
+                if (post) {
+                    orderData = [
+                        post.args.maker,
+                        post.args.isHuman ? false : true, 
+                        post.args.amountIn,
+                        post.args.minAmountOut,
+                        0, 
+                        fill || cancel ? false : true,
+                    ];
+                } else {
+                    orderData = await client.readContract({
+                        address: hookAddress,
+                        abi: (ArenaHookABI as any).abi || ArenaHookABI,
+                        functionName: 'orders',
+                        args: [BigInt(i)],
+                    }) as any;
+                }
 
                 const makerAddress = orderData[0].toLowerCase();
                 const isTKNA = orderData[1];
-                const fromAmount = Number(orderData[2]) / 1e18;
-                const toAmount = Number(orderData[3]) / 1e18;
-                const expiry = Number(orderData[4]);
+                const fromAmount = formatUnits(orderData[2], 18);
+                const toAmount = formatUnits(orderData[3], 18);
                 const isCompleted = !orderData[5];
                 const isHumanMaker = !!orderData[7];
 
                 let profit = null;
-                if (isCompleted) {
-                    // Simulated market price for this order index
+                if (isCompleted && !cancel) {
                     const priceSeed = 3000 + ( (i * 1337) % 100 ) - 50; 
-                    
                     if (isTKNA) {
-                        // Maker sells TKNA (Asset) for TKNB (Stable)
-                        // Sniper buys Asset at toAmount, sells at priceSeed
-                        const marketValue = fromAmount * priceSeed;
-                        profit = (marketValue - toAmount).toFixed(2);
+                        const marketValue = parseFloat(fromAmount) * priceSeed;
+                        profit = (marketValue - parseFloat(toAmount)).toFixed(2);
                     } else {
-                        // Maker sells TKNB (Stable) for TKNA (Asset)
-                        // Sniper gives toAmount (Asset), gets fromAmount (Stable)
-                        const marketValueGiven = toAmount * priceSeed;
-                        profit = (fromAmount - marketValueGiven).toFixed(2);
+                        const marketValueGiven = parseFloat(toAmount) * priceSeed;
+                        profit = (parseFloat(fromAmount) - marketValueGiven).toFixed(2);
                     }
                 }
 
-                const winnerInfo = winnersMap[i];
-                const takerAddress = winnerInfo?.taker || null;
+                const takerAddress = fill?.taker || null;
+                const winnerIsAi = fill?.byAi || false;
                 
                 let agentId = null;
                 if (takerAddress === ALPHA_ADDRESS) agentId = 1;
@@ -180,29 +168,16 @@ export async function GET(request: Request) {
                     botAddress: takerAddress || (isCompleted ? null : makerAddress),
                     makerAddress: orderData[0],
                     takerAddress: takerAddress,
-                    winnerIsAi: winnerInfo?.byAi || false,
+                    winnerIsAi: winnerIsAi,
                     isHumanMaker: isHumanMaker,
                     agentId: agentId,
                     isInternalClash: isInternalClash,
-                    status: isCompleted 
-                        ? (cancelsMap[i] ? 'cancelled' : 'completed') 
-                        : (Date.now()/1000 > expiry ? 'expired' : 'active'),
+                    status: cancel ? 'cancelled' : (isCompleted ? 'completed' : 'active'),
                     profit: profit,
-                    // Use real event timestamp if available, otherwise fallback to estimation
-                    createdAt: postedTimeMap[i] 
-                        ? new Date(postedTimeMap[i] * 1000).toISOString() 
-                        : new Date(Math.min(expiry * 1000 - 300 * 1000, Date.now())).toISOString(),
-                    // Meta for refunds
-                    poolKey: {
-                        currency0: orderData[8],
-                        currency1: orderData[9],
-                        fee: 3000,
-                        tickSpacing: 60,
-                        hooks: hookAddress
-                    }
+                    createdAt: new Date(Date.now() - (count - i) * 60000).toISOString()
                 });
-            } catch (orderErr) {
-                // Skip
+            } catch (err) {
+                continue;
             }
         }
 
@@ -213,12 +188,12 @@ export async function GET(request: Request) {
               )
             : deals;
 
-        return NextResponse.json({ deals: filteredDeals.reverse() });
+        return NextResponse.json({ deals: filteredDeals });
     } catch (error: any) {
         console.error('Failed to fetch deals:', error);
         return NextResponse.json({ 
             deals: [], 
-            error: error.message || 'Failed'
+            error: error.message || 'Failed to fetch deals' 
         }, { status: 500 });
     }
 }
