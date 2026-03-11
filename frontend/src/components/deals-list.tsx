@@ -47,9 +47,10 @@ interface DealsListProps {
   viewMode: ViewMode
   botAddress?: string | null
   botLabel?: string | null
+  limit?: number | null
 }
 
-export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
+export function DealsList({ viewMode, botAddress, botLabel, limit }: DealsListProps) {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -289,7 +290,7 @@ export function DealsList({ viewMode, botAddress, botLabel }: DealsListProps) {
             ARENA IS SILENT. WAITING FOR COMBATANTS...
           </div>
         ) : (
-          filteredDeals.slice(0, 10).map((deal) => (
+          (limit ? filteredDeals.slice(0, limit) : filteredDeals).map((deal) => (
             <DealEntry key={deal.id} deal={deal} />
           ))
         )}
