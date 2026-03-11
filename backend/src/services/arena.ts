@@ -110,7 +110,7 @@ export class ArenaService {
             const nextOrderId = await (this.arenaHook as any).nextOrderId();
             for (let i = 0; i < Number(nextOrderId); i++) {
                 const order = await (this.arenaHook as any).orders(i);
-                if (order && order.active) {
+                if (order && order.active && !this.activeOrders.has(i)) {
                     this.activeOrders.add(i);
                     // Check if it's snipable on startup
                     await this.maybeSnipe(i, order.maker);
@@ -125,14 +125,18 @@ export class ArenaService {
     private listenForEvents() {
         this.arenaHook.on('OrderPosted', (orderId, maker, isHuman) => {
             const id = Number(orderId);
-            this.activeOrders.add(id);
-            const bot = this.botService.getBotByAddress(maker);
-            const name = bot ? bot.name : (isHuman ? "Human" : "Robot");
-            const role = bot ? "[TACTICIAN]" : "[USER]";
-            console.log(`🆕 ${role} ${name} Posted Order #${id}`);
+            
+            // Only process if we haven't already started sniping this order
+            if (!this.activeOrders.has(id)) {
+                this.activeOrders.add(id);
+                const bot = this.botService.getBotByAddress(maker);
+                const name = bot ? bot.name : (isHuman ? "Human" : "Robot");
+                const role = bot ? "[TACTICIAN]" : "[USER]";
+                console.log(`🆕 ${role} ${name} Posted Order #${id}`);
 
-            // If it's a Human or another bot, trigger a Sniper
-            this.maybeSnipe(id, maker);
+                // If it's a Human or another bot, trigger a Sniper
+                this.maybeSnipe(id, maker);
+            }
         });
 
         this.arenaHook.on('OrderFilled', (orderId, taker, byAi) => {
@@ -142,14 +146,7 @@ export class ArenaService {
             const name = bot ? bot.name : "Unknown";
             const role = byAi ? "[SNIPER]" : "[USER]";
             
-            // If the taker is AlphaMachine but the logs show it was a Reactive AI snipe,
-            // it might be a relayer attribution issue.
-            const sentinel = this.botService.getBot(1);
-            const displayName = (taker.toLowerCase() === sentinel?.address.toLowerCase() && byAi) 
-                ? "BetaSentinel (via Alpha)" 
-                : name;
-
-            console.log(`✅ Clash Resolved! Order #${id} captured by ${role} ${displayName}`);
+            console.log(`✅ Clash Resolved! Order #${id} captured by ${role} ${name}`);
         });
     }
 
@@ -255,15 +252,11 @@ export class ArenaService {
                     await approveTx.wait();
                 }
 
-                // RELAYER PATTERN: Always call triggerOrder from the Sentinel (AlphaMachine)
-                // but pass the sniper's ID and address as the winner/beneficiary.
-                const alpha = this.botService.getBot(1);
-                if (!alpha) throw new Error("Sentinel bot (AlphaMachine) not found");
-                
-                const hookWithSentinel = this.arenaHook.connect(alpha.wallet) as ethers.Contract;
+                // Let the selected sniper execute its own transaction directly
+                const hookWithSniper = this.arenaHook.connect(sniper.wallet) as ethers.Contract;
 
-                const tx = await (hookWithSentinel as any).triggerOrder(orderId, sniper.id, sniper.address);
-                console.log(`🔫 [SNIPER] ${sniper.name} CRITICAL STRIKE! (Relayed by Sentinel). Tx: ${tx.hash}`);
+                const tx = await (hookWithSniper as any).triggerOrder(orderId, sniper.id, sniper.address);
+                console.log(`🔫 [SNIPER] ${sniper.name} CRITICAL STRIKE! Tx: ${tx.hash}`);
                 console.log(`🏆 Reputation Updated for ${sniper.name} (AgentID: ${sniper.id})`);
                 await tx.wait();
                 console.log(`✅ [SNIPER] ${sniper.name} successfully filled Order #${orderId}`);

@@ -53,10 +53,13 @@ This project implements the **EIP-8004** standard for decentralized trust.
 ## 🛡️ Recent Enhancements (Hookathon Final Phase)
 We have hardened the Arena for high-stakes competition with the following features:
 
-1.  **Race Condition Guard (L2)**: Implemented a smart contract level `Expiry Guard` in `ArenaHook.sol`. This prevents AI Agents from filling orders that have reached their deadline, ensuring the "Snipe-While-Cancelling" race condition is impossible.
-2.  **Nuclear Profit Guard**: The AI Engine's backend now enforces a strict **Negative Profit Filter**. Bots will automatically ignore orders that result in a loss, protecting the Agent's treasury from "Poison Orders."
-3.  **Cancellation Transparency**: The Dashboard now distinguishes between **Filled**, **Expired**, and **Cancelled** orders. Makers can now clearly see when they must manually claim a refund for their tokens.
-4.  **TypeScript Hardening**: Refactored the `ArenaService` backend with strict null checks and type safety to ensure 100% uptime during high-frequency volatility analysis.
+1.  **Terminal-Style Dashboard Overhaul**: Transformed the frontend into a high-density, cyberpunk-themed command center. Features include live price tickers, a dynamic "Mission Briefing" page, and a unified Battle Stats header.
+2.  **Real-Time Reactivity Fix**: Added a `useEffect` synchronization layer to the `CreateOrderForm`. The UI now automatically detects and reflects token approval confirmations without requiring a page refresh.
+3.  **Dynamic Volume Calculation**: Replaced hardcoded stats with a live blockchain-derived volume tracker. It computes the "True USD" value of every trade based on the simulated ETH/USDC exchange rate.
+4.  **Bot Selection Randomizer**: Optimized the AI Engine to use a fair coin-flip logic for sniping. Both **AlphaMachine** and **BetaSentinel** now compete fairly, signing and executing their own transactions.
+5.  **Race Condition Guard (L2)**: Implemented a smart contract level `Expiry Guard` in `ArenaHook.sol`. This prevents AI Agents from filling orders that have reached their deadline.
+6.  **Nuclear Profit Guard**: The AI Engine's backend now enforces a strict **Negative Profit Filter**. Bots will automatically ignore orders that result in a loss.
+7.  **TypeScript Hardening**: Refactored the `ArenaService` backend to ensure 100% uptime during high-frequency volatility analysis.
 
 ## 🛠️ Stack
 *   **Layer 1**: Ethereum Sepolia (Price Reference)

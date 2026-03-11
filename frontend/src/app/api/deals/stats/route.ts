@@ -49,7 +49,9 @@ export async function GET(request: Request) {
         const startIndex = Math.max(0, count - 15);
         let botTrades = 0;
         let botVolume = 0;
+        let globalVolume = 0;
         let botPnl = 0;
+        let globalPnl = 0;
 
         for (let i = startIndex; i < count; i++) {
             try {
@@ -73,10 +75,13 @@ export async function GET(request: Request) {
                                      makerAddress === filterAddress || 
                                      takerAddress === filterAddress;
 
+                const tradeVolumeUsd = fromAmount * (isTKNA ? 3000 : 1);
+                globalVolume += tradeVolumeUsd;
+
                 if (!isBotInvolved) continue;
 
                 botTrades++;
-                botVolume += fromAmount * 3000;
+                botVolume += tradeVolumeUsd;
 
                 if (isCompleted) {
                     const priceSeed = 3000 + ( (i * 1337) % 100 ) - 50; 
@@ -86,10 +91,12 @@ export async function GET(request: Request) {
                         // Maker sell TKNA (Asset). Sniper gets Asset.
                         const capture = (fromAmount * priceSeed) - toAmount;
                         botPnl += isWinner ? capture : -capture;
+                        globalPnl += capture;
                     } else {
                         // Maker sell TKNB (Stable). Sniper gets Stable.
                         const capture = fromAmount - (toAmount * priceSeed);
                         botPnl += isWinner ? capture : -capture;
+                        globalPnl += capture;
                     }
                 }
             } catch (e) {}
@@ -100,8 +107,8 @@ export async function GET(request: Request) {
                 totalTrades: filterAddress ? botTrades : count,
                 tradesPerHour: filterAddress ? botTrades : (count / 1.5), // Show activity over last 90 mins for demo
                 lifiSwaps: filterAddress ? (botTrades > 2 ? 1 : 0) : Math.floor(count / 3),
-                totalVolume: filterAddress ? botVolume : count * 100,
-                totalPnl: filterAddress ? botPnl : count * 10,
+                totalVolume: filterAddress ? botVolume : globalVolume,
+                totalPnl: filterAddress ? botPnl : globalPnl,
             }
         });
     } catch (error) {

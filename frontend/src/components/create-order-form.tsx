@@ -37,9 +37,9 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
         query: { enabled: !!address && !!tokenIn && tokenIn.startsWith('0x') }
     })
 
-    // Automatically refetch allowance when an approval transaction confirms
+    // Automatically refetch allowance when a transaction confirms
     useEffect(() => {
-        if (isConfirmed && lastTxType === 'approve') {
+        if (isConfirmed && (lastTxType === 'approve' || lastTxType === 'order')) {
             refetchAllowance()
         }
     }, [isConfirmed, lastTxType, refetchAllowance])
