@@ -69,8 +69,12 @@ export async function GET() {
         }
 
         return NextResponse.json({ orders: orders.reverse() });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to fetch orders:', error);
-        return NextResponse.json({ orders: [], error: 'Failed to fetch orders' }, { status: 500 });
+        // Fallback to empty list instead of 500 to keep UI stable
+        return NextResponse.json({ 
+            orders: [], 
+            error: error.message || 'Failed to fetch orders' 
+        });
     }
 }

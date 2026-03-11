@@ -81,10 +81,7 @@ function HomeContent() {
           {/* Bot Intel (Assets) */}
           {botAddress ? (
             <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-              <div className="glass-panel p-4 rounded-xl border border-neon-green/20 bg-neon-green/[0.01]">
-                <h3 className="text-[10px] font-cyber font-bold uppercase tracking-widest mb-4 text-neon-green/80 flex items-center gap-2">
-                  <span>🏦</span> Treasury
-                </h3>
+              <div className="glass-panel p-5 rounded-2xl border border-neon-green/20 bg-neon-green/[0.02] shadow-[0_0_20px_rgba(34,197,94,0.05)]">
                 <BotAssets botAddress={botAddress} botLabel={botLabel} />
               </div>
             </div>
@@ -93,23 +90,6 @@ function HomeContent() {
               <p className="text-xs text-muted-foreground leading-relaxed italic">
                 &quot;Wait for the Machine to take the bait, or scout the ENS registry to witness their portfolio.&quot;
               </p>
-            </div>
-          )}
-
-          {/* Mission Control: Order Entry */}
-          {(viewMode === 'pvp-arena' || botAddress) ? (
-            <div className="pt-4 border-t border-white/5 space-y-4">
-              <h2 className="text-[10px] font-cyber uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-purple/50" />
-                Forge New Order
-              </h2>
-              <CreateOrderForm variant="compact" />
-            </div>
-          ) : (
-            <div className="pt-4 border-t border-white/5 opacity-30 select-none grayscale">
-               <div className="p-4 rounded-xl border border-dashed border-white/10 text-center">
-                 <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest">Select Bot to Forge Order</p>
-               </div>
             </div>
           )}
 
@@ -148,8 +128,15 @@ function HomeContent() {
         </header>
 
         {/* Dash Grid (Now flex-1 and potentially restricted) */}
-        <div className="flex-1 p-6 lg:p-8 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 p-6 lg:p-8 flex flex-col min-h-0 overflow-hidden space-y-6">
           
+          {/* Full-width Order Entry Area */}
+          {(viewMode === 'pvp-arena' || botAddress) && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+              <CreateOrderForm variant="wide" />
+            </div>
+          )}
+
           <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-8 min-h-0">
             
             {/* Active Targets Area */}

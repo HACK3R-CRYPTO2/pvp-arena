@@ -58,13 +58,15 @@ export async function GET(request: Request) {
 
         // Pre-fetch OrderFilled events to find real winners
         const latestBlock = await client.getBlockNumber();
-        const fromBlock = latestBlock > BigInt(45000) ? latestBlock - BigInt(45000) : BigInt(0);
+        const fromBlock = latestBlock > BigInt(10000) ? latestBlock - BigInt(10000) : BigInt(0);
+        // Specifically for fills, we look back further (50k blocks ~= 14 hours) to identify old snipers
+        const fillFromBlock = latestBlock > BigInt(50000) ? latestBlock - BigInt(50000) : BigInt(0);
 
         const [fillLogs, cancelLogs, postedLogs] = await Promise.all([
             client.getLogs({
                 address: hookAddress,
                 event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
-                fromBlock: fromBlock
+                fromBlock: fillFromBlock
             }),
             client.getLogs({
                 address: hookAddress,
@@ -92,12 +94,16 @@ export async function GET(request: Request) {
         const postedTimeMap: Record<number, number> = {};
         const blockTimestampMap: Record<string, number> = {};
 
-        // Fetch timestamps for blocks
-        const uniqueBlocks = [...new Set(postedLogs.map(l => l.blockNumber))];
+        // Fetch timestamps for only the last 5 unique blocks
+        const uniqueBlocks = [...new Set(postedLogs.map(l => l.blockNumber))].slice(-5);
         for (const b of uniqueBlocks) {
             if (b) {
-                const block = await client.getBlock({ blockNumber: b });
-                blockTimestampMap[b.toString()] = Number(block.timestamp);
+                try {
+                    const block = await client.getBlock({ blockNumber: b });
+                    blockTimestampMap[b.toString()] = Number(block.timestamp);
+                } catch (e) {
+                    // Ignore transient block fetch errors
+                }
             }
         }
 

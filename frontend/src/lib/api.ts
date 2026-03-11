@@ -32,3 +32,25 @@ export const api = {
   put: (url: string, data?: unknown) => getApi().put(url, data),
   delete: (url: string) => getApi().delete(url),
 }
+
+// Backend-specific API instance (3001)
+let backendInstance: ReturnType<typeof axios.create> | null = null
+
+export function getBackendApi() {
+  if (!backendInstance) {
+    const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+    backendInstance = axios.create({
+      baseURL: url,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+  }
+  return backendInstance
+}
+
+export const backendApi = {
+  get: (url: string) => getBackendApi().get(url),
+  post: (url: string, data?: unknown) => getBackendApi().post(url, data),
+}

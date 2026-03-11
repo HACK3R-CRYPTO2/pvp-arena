@@ -13,7 +13,7 @@ async function main() {
         await arena.start();
 
         // Simple HTTP server to expose market data to frontend
-        const server = http.createServer((req, res) => {
+        const server = http.createServer(async (req, res) => {
             // Enable CORS
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -29,6 +29,17 @@ async function main() {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(arena.getMarketState()));
                 return;
+            }
+
+            if (req.url?.startsWith('/api/bots/assets/') && req.method === 'GET') {
+                const parts = req.url.split('/');
+                const address = parts[parts.length - 1];
+                if (address) {
+                    const data = await botService.getBotAssets(address);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(data));
+                    return;
+                }
             }
 
             if (req.method === 'POST') {

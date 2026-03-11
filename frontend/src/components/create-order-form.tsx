@@ -11,6 +11,9 @@ interface CreateOrderFormProps {
     variant?: 'default' | 'wide' | 'compact'
 }
 
+const TKNA_ADDR = '0x3263d3c28e2535d1bdb70e9567eec8ee2fdd40e7'
+const TKNB_ADDR = '0xddee18b54cc13de0e9ec85b7affbb031cc46a7f1'
+
 export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
     const { address, isConnected } = useAccount()
     const { writeContract, data: hash, error: writeError, isPending } = useWriteContract()
@@ -115,7 +118,13 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
             <div className="space-y-4">
                 <form onSubmit={handleSubmit} className="space-y-3">
                     <div className="space-y-1.5">
-                        <label className="text-[9px] text-muted-foreground font-cyber uppercase tracking-widest">Target Assets</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-[9px] text-muted-foreground font-cyber uppercase tracking-widest text-neon-purple/80">Target Assets</label>
+                            <div className="flex gap-1">
+                                <button type="button" onClick={() => setTokenIn(TKNA_ADDR)} className="text-[8px] bg-white/5 hover:bg-white/10 border border-white/10 px-1 rounded transition-colors text-muted-foreground hover:text-white uppercase font-mono">TKNA</button>
+                                <button type="button" onClick={() => setTokenIn(TKNB_ADDR)} className="text-[8px] bg-white/5 hover:bg-white/10 border border-white/10 px-1 rounded transition-colors text-muted-foreground hover:text-white uppercase font-mono">TKNB</button>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
                             <input
                                 type="text"
@@ -124,13 +133,19 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                                 value={tokenIn}
                                 onChange={e => setTokenIn(e.target.value)}
                             />
-                            <input
-                                type="text"
-                                placeholder="Buy 0x..."
-                                className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-[10px] font-mono focus:border-neon-purple/50 outline-none placeholder:opacity-30"
-                                value={tokenOut}
-                                onChange={e => setTokenOut(e.target.value)}
-                            />
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Buy 0x..."
+                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-[10px] font-mono focus:border-neon-purple/50 outline-none placeholder:opacity-30"
+                                    value={tokenOut}
+                                    onChange={e => setTokenOut(e.target.value)}
+                                />
+                                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1 bg-black/40 p-0.5 rounded backdrop-blur-sm border border-white/5">
+                                    <button type="button" onClick={() => setTokenOut(TKNA_ADDR)} className="text-[7px] text-muted-foreground hover:text-white uppercase font-bold px-0.5 transition-colors">A</button>
+                                    <button type="button" onClick={() => setTokenOut(TKNB_ADDR)} className="text-[7px] text-muted-foreground hover:text-white uppercase font-bold px-0.5 transition-colors">B</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -201,7 +216,13 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                     <div className="md:col-span-1 space-y-1.5">
-                        <label className="text-[10px] text-muted-foreground font-cyber uppercase">Sell</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-muted-foreground font-cyber uppercase">Sell</label>
+                            <div className="flex gap-1">
+                                <button type="button" onClick={() => setTokenIn(TKNA_ADDR)} className="text-[8px] text-muted-foreground hover:text-neon-cyan transition-colors uppercase font-mono">TKNA</button>
+                                <button type="button" onClick={() => setTokenIn(TKNB_ADDR)} className="text-[8px] text-muted-foreground hover:text-neon-cyan transition-colors uppercase font-mono">TKNB</button>
+                            </div>
+                        </div>
                         <input
                             type="text"
                             placeholder="0x..."
@@ -211,7 +232,13 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                         />
                     </div>
                     <div className="md:col-span-1 space-y-1.5">
-                        <label className="text-[10px] text-muted-foreground font-cyber uppercase">Buy</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-muted-foreground font-cyber uppercase">Buy</label>
+                            <div className="flex gap-1">
+                                <button type="button" onClick={() => setTokenOut(TKNA_ADDR)} className="text-[8px] text-muted-foreground hover:text-neon-cyan transition-colors uppercase font-mono">TKNA</button>
+                                <button type="button" onClick={() => setTokenOut(TKNB_ADDR)} className="text-[8px] text-muted-foreground hover:text-neon-cyan transition-colors uppercase font-mono">TKNB</button>
+                            </div>
+                        </div>
                         <input
                             type="text"
                             placeholder="0x..."
@@ -293,7 +320,13 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground font-mono">Sell Token</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs text-muted-foreground font-mono">Sell Token</label>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => setTokenIn(TKNA_ADDR)} className="text-[10px] text-neon-cyan hover:underline font-mono">TKNA</button>
+                                <button type="button" onClick={() => setTokenIn(TKNB_ADDR)} className="text-[10px] text-neon-cyan hover:underline font-mono">TKNB</button>
+                            </div>
+                        </div>
                         <input
                             type="text"
                             placeholder="0x..."
@@ -303,7 +336,13 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground font-mono">Buy Token</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs text-muted-foreground font-mono">Buy Token</label>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => setTokenOut(TKNA_ADDR)} className="text-[10px] text-neon-cyan hover:underline font-mono">TKNA</button>
+                                <button type="button" onClick={() => setTokenOut(TKNB_ADDR)} className="text-[10px] text-neon-cyan hover:underline font-mono">TKNB</button>
+                            </div>
+                        </div>
                         <input
                             type="text"
                             placeholder="0x..."
