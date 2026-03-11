@@ -87,14 +87,16 @@ export function useAgentReputation(agentId: number | undefined) {
                     return
                 }
 
-                let total = BigInt(0)
+                // Calculation: (Baseline 60 + Sum of On-Chain Successes) / (1 + Count of Logs)
+                // This ensures the score GROWS toward 100 rather than jumping there immediately.
+                let total = BigInt(60) 
                 logs.forEach(log => {
                     if (log.args && log.args.value !== undefined) {
                         total += BigInt(log.args.value as any)
                     }
                 })
 
-                const average = Number(total) / logs.length
+                const average = Number(total) / (logs.length + 1)
                 setScore(Math.round(average))
             } catch (error) {
                 console.error('Failed to fetch reputation from logs:', error)
