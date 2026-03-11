@@ -1,4 +1,11 @@
-# ⚔️ PvP Trading Arena: Man vs. Machine
+# ⚔️
+```text
+  ___      ___     _                   
+ | _ \_ _ | _ \   /_\  _ _ ___ _ _  __ _ 
+ |  _/ ' \|  _/  / _ \| '_/ -_) ' \/ _` |
+ |_| |_||_|_|   /_/ \_\_| \___|_||_\__,_|
+```
+**Man vs. Machine**
 ![Tests](https://img.shields.io/badge/Tests-PASSING-success) ![EIP-8004](https://img.shields.io/badge/EIP--8004-Trustless%20Agents-blue)
 
 ## 🚀 The Vision: "The Digital Ambush"

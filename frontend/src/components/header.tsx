@@ -33,7 +33,7 @@ export function Header({ viewMode, onViewModeChange, onReset, variant = 'default
     return (
       <div className="flex flex-col gap-6">
         <Link href="/" onClick={handleLogoClick} className="flex items-center gap-3 hover:opacity-80">
-          <Image src="/logo-06-removebg-preview.png" alt="PvP Arena" width={40} height={40} className="rounded-lg shadow-[0_0_15px_rgba(139,92,246,0.2)]" />
+          <Image src="/logo.png" alt="PvP Arena" width={44} height={44} className="rounded-lg mix-blend-screen shadow-[0_0_15px_rgba(139,92,246,0.2)]" />
           <div>
             <h1 className="text-lg font-bold font-cyber text-foreground leading-tight tracking-tight">
               PvP Arena
@@ -99,7 +99,7 @@ export function Header({ viewMode, onViewModeChange, onReset, variant = 'default
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-3 hover:opacity-80">
-            <Image src="/logo-06-removebg-preview.png" alt="PvP Arena" width={48} height={48} />
+            <Image src="/logo.png" alt="PvP Arena" width={52} height={52} className="mix-blend-screen" />
             <div>
               <h1 className="text-xl font-bold text-foreground">
                 PvP Arena

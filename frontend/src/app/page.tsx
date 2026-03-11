@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useRef } from 'react'
 
-export type ViewMode = 'bot-arena' | 'pvp-arena'
+type ViewMode = 'bot-arena' | 'pvp-arena'
 
 export default function Home() {
   return (
@@ -61,13 +61,13 @@ function HomeContent() {
 
   return (
     <main className="flex h-screen bg-background overflow-hidden selection:bg-primary/30 selection:text-white">
-      
+
       {/* LEFT SIDEBAR: Nav & Discovery (3/12 or fixed 320px) */}
       <aside className="w-80 border-r border-white/5 bg-black/40 backdrop-blur-xl flex flex-col shrink-0">
         <div className="p-6 border-b border-white/5">
           <Header viewMode={viewMode} onViewModeChange={setViewMode} onReset={handleReset} variant="sidebar" />
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
           {/* Search / Scout */}
           <div className="space-y-4">
@@ -89,9 +89,9 @@ function HomeContent() {
               </div>
             </div>
           ) : (
-             <div className="glass-panel p-6 rounded-xl border border-white/5 text-center bg-white/1">
+            <div className="glass-panel p-6 rounded-xl border border-white/5 text-center bg-white/1">
               <p className="text-xs text-muted-foreground leading-relaxed italic">
-                "Wait for the Machine to take the bait, or scout the ENS registry to witness their portfolio."
+                &quot;Wait for the Machine to take the bait, or scout the ENS registry to witness their portfolio.&quot;
               </p>
             </div>
           )}
@@ -119,7 +119,7 @@ function HomeContent() {
 
       {/* MAIN CONTENT: The Battlefield */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.05),transparent)]">
-        
+
         {/* TOP HUD: Unified Stats & Pulse */}
         <header className="h-16 border-b border-white/5 bg-black/20 flex items-center px-8 justify-between shrink-0">
           <div className="flex-1 max-w-2xl">
@@ -132,17 +132,17 @@ function HomeContent() {
 
         {/* SCROLLABLE BATTLEFIELD AREA */}
         <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
-          
+
           {/* High Priority Actions (Order Entry) */}
           {(viewMode === 'pvp-arena' || botAddress) && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-               <CreateOrderForm variant="wide" />
+              <CreateOrderForm variant="wide" />
             </div>
           )}
 
           {/* Dual Feed Layout */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-            
+
             {/* Active Targets Pane */}
             <section className="space-y-4">
               <div className="flex items-center justify-between px-2">
@@ -172,10 +172,13 @@ function HomeContent() {
           </div>
 
           {/* Global Footer (Mobile friendly info) */}
-          <footer className="pt-20 pb-8 text-center border-t border-white/5">
-             <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em]">
-                Antigravity AI Arena • Protocol v4.0.1
-             </p>
+          <footer className="pt-20 pb-8 text-center border-t border-white/5 space-y-2">
+            <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.2em]">
+              PvP Arena • Protocol v4.0.1
+            </p>
+            <p className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">
+              Powered by Uniswap, Reactive & Unichain
+            </p>
           </footer>
         </div>
       </div>

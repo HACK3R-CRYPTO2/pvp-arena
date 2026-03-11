@@ -73,7 +73,7 @@ export function useAgentReputation(agentId: number | undefined) {
             setLoading(true)
             try {
                 // Query all NewFeedback events for this agent
-                const logs = await publicClient.getLogs({
+                const logs = await publicClient!.getLogs({
                     address: P2P_TRADING_ARENA_ADDRESSES.AgentReputation as `0x${string}`,
                     event: parseAbiItem('event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)'),
                     args: {

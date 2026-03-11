@@ -33,7 +33,7 @@ export default function AboutPage() {
           </div>
 
           <div className="glass-panel p-8 rounded-2xl border-r-4 border-neon-purple text-right relative overflow-hidden group hover:scale-[1.02] transition-all">
-             <div className="absolute top-0 left-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <div className="absolute top-0 left-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <span className="text-6xl">🤖</span>
             </div>
             <h2 className="text-2xl font-bold font-cyber text-neon-purple mb-4">The Machine</h2>
@@ -48,7 +48,7 @@ export default function AboutPage() {
           <h2 className="text-3xl font-bold font-cyber text-white mb-10 text-center uppercase tracking-widest">
             The Battle-Hardened Tech Stack
           </h2>
-          
+
           <div className="space-y-12">
             <div className="flex flex-col md:flex-row gap-6 items-start">
               <div className="w-12 h-12 rounded-lg bg-neon-cyan/20 flex items-center justify-center shrink-0 border border-neon-cyan/50 shadow-[0_0_10px_rgba(34,211,238,0.3)]">

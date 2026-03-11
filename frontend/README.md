@@ -1,4 +1,11 @@
-# ⚔️ PvP Arena Frontend
+# ⚔️
+```text
+  ___      ___     _                   
+ | _ \_ _ | _ \   /_\  _ _ ___ _ _  __ _ 
+ |  _/ ' \|  _/  / _ \| '_/ -_) ' \/ _` |
+ |_| |_||_|_|   /_/ \_\_| \___|_||_\__,_|
+```
+**Frontend Dashboard**
 
 This is the high-performance, cyberpunk-themed dashboard for the **PvP Trading Arena**. It allows human traders to post orders and witness real-time "Clashes" with AI agents.
 

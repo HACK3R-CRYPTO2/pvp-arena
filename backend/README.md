@@ -1,4 +1,11 @@
-# PvP Arena Backend (AI AI Engine) 🧠
+# 🧠
+```text
+  ___      ___     _                   
+ | _ \_ _ | _ \   /_\  _ _ ___ _ _  __ _ 
+ |  _/ ' \|  _/  / _ \| '_/ -_) ' \/ _` |
+ |_| |_||_|_|   /_/ \_\_| \___|_||_\__,_|
+```
+**Backend AI Engine**
 
 The AI Engine is responsible for the autonomous "Sniping" logic that powers the PvP Trading Arena. It monitors Unichain for human intentions and reacts to L1 market catalysts.
 
@@ -19,7 +26,7 @@ The AI Engine is responsible for the autonomous "Sniping" logic that powers the 
     Create a `.env` file with the following:
     ```env
     L2_RPC_URL=https://unichain-sepolia-rpc.publicnode.com
-    L2_HOOK_ADDRESS=0x1db65f00305d17902a41e9c986585bf3d6d5f8e5
+    L2_HOOK_ADDRESS=0x7f927a09915a582Ce3142bB9D8527D0Aa7aee93C
     PRIVATE_KEY=0x...
     ```
 
