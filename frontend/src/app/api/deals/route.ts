@@ -87,6 +87,21 @@ export async function GET(request: Request) {
         cancelLogs.forEach(l => {
             cancelsMap[Number(l.args.orderId)] = (l.args.maker as string).toLowerCase();
         });
+        const blockTimestampMap: Record<string, number> = {};
+        const uniqueBlocks = [...new Set([
+            ...fillLogs.map(l => l.blockNumber?.toString()),
+            ...cancelLogs.map(l => l.blockNumber?.toString()),
+            ...postedLogs.map(l => l.blockNumber?.toString())
+        ])].filter(Boolean) as string[];
+
+        // Fetch timestamps for unique blocks (limit to last 20 unique blocks to keep it fast)
+        const blocksToFetch = uniqueBlocks.slice(-20);
+        await Promise.all(blocksToFetch.map(async (b) => {
+            try {
+                const block = await client.getBlock({ blockNumber: BigInt(b) });
+                blockTimestampMap[b] = Number(block.timestamp);
+            } catch (e) { /* ignore */ }
+        }));
 
         const deals: any[] = [];
         
@@ -98,14 +113,36 @@ export async function GET(request: Request) {
         ]);
 
         const sortedIds = Array.from(allIds).sort((a, b) => b - a);
+        // Limit to 20 to keep it responsive
+        const displayIds = sortedIds.slice(0, 20);
 
-        for (const i of sortedIds) {
+        // Identify all blocks needed for these IDs
+        const blocksNeeded = new Set<string>();
+        for (const i of displayIds) {
+            const l = postedLogs.find(l => Number(l.args.orderId) === i) ||
+                      fillLogs.find(l => Number(l.args.orderId) === i) ||
+                      cancelLogs.find(l => Number(l.args.orderId) === i);
+            if (l?.blockNumber) blocksNeeded.add(l.blockNumber.toString());
+        }
+
+        // Fetch those block timestamps
+        await Promise.all(Array.from(blocksNeeded).map(async (b) => {
+            if (blockTimestampMap[b]) return;
+            try {
+                const block = await client.getBlock({ blockNumber: BigInt(b) });
+                blockTimestampMap[b] = Number(block.timestamp);
+            } catch (e) { /* ignore */ }
+        }));
+
+        for (const i of displayIds) {
             try {
                 const post = postedLogs.find(l => Number(l.args.orderId) === i);
                 const fill = fillMap[i];
                 const cancel = cancelsMap[i];
                 
                 let orderData: any;
+                let logBlock: string | undefined;
+                
                 if (post) {
                     orderData = [
                         post.args.maker,
@@ -115,6 +152,7 @@ export async function GET(request: Request) {
                         0, 
                         fill || cancel ? false : true,
                     ];
+                    logBlock = post.blockNumber?.toString();
                 } else {
                     orderData = await client.readContract({
                         address: hookAddress,
@@ -122,6 +160,8 @@ export async function GET(request: Request) {
                         functionName: 'orders',
                         args: [BigInt(i)],
                     }) as any;
+                    logBlock = fillLogs.find(l => Number(l.args.orderId) === i)?.blockNumber?.toString() ||
+                               cancelLogs.find(l => Number(l.args.orderId) === i)?.blockNumber?.toString();
                 }
 
                 const makerAddress = orderData[0].toLowerCase();
@@ -156,6 +196,13 @@ export async function GET(request: Request) {
                     (makerAddress === ALPHA_ADDRESS || makerAddress === BETA_ADDRESS) &&
                     (takerAddress === ALPHA_ADDRESS || takerAddress === BETA_ADDRESS);
 
+                // Use real timestamp if available, fallback to mock based on block number diff
+                // 1 block ~= 1 second on Unichain
+                const blockDiff = logBlock ? (Number(latestBlock) - Number(logBlock)) : (count - i) * 60;
+                const timestamp = logBlock && blockTimestampMap[logBlock] 
+                    ? blockTimestampMap[logBlock] * 1000 
+                    : Date.now() - (blockDiff * 1000);
+
                 deals.push({
                     id: i.toString(),
                     regime: 'p2p',
@@ -174,7 +221,7 @@ export async function GET(request: Request) {
                     isInternalClash: isInternalClash,
                     status: cancel ? 'cancelled' : (isCompleted ? 'completed' : 'active'),
                     profit: profit,
-                    createdAt: new Date(Date.now() - (count - i) * 60000).toISOString()
+                    createdAt: new Date(timestamp).toISOString()
                 });
             } catch (err) {
                 continue;
