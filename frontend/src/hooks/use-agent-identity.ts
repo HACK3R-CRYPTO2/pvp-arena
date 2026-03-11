@@ -79,11 +79,11 @@ export function useAgentReputation(agentId: number | undefined) {
                     args: {
                         agentId: BigInt(agentId!)
                     },
-                    fromBlock: BigInt(0)
+                    fromBlock: BigInt(46390000)
                 })
 
                 if (logs.length === 0) {
-                    setScore(85) // Starting trust for registered agents
+                    setScore(99) // Starting trust for registered agents
                     return
                 }
 
@@ -98,7 +98,7 @@ export function useAgentReputation(agentId: number | undefined) {
                 setScore(Math.round(average))
             } catch (error) {
                 console.error('Failed to fetch reputation from logs:', error)
-                setScore(85) // Fallback
+                setScore(99) // Fallback
             } finally {
                 setLoading(false)
             }
@@ -108,7 +108,7 @@ export function useAgentReputation(agentId: number | undefined) {
     }, [agentId, publicClient])
 
     return {
-        score: score ?? (agentId ? 85 : 0),
+        score: score ?? (agentId ? 99 : 0),
         status: loading ? 'Syncing...' : (score ? 'On-Chain' : 'Neutral')
     }
 }
