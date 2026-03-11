@@ -82,21 +82,17 @@ export function useAgentReputation(agentId: number | undefined) {
                     fromBlock: BigInt(46390000)
                 })
 
-                if (logs.length === 0) {
-                    setScore(60) // Starting trust for registered agents
-                    return
-                }
-
-                // Calculation: (Baseline 60 + Sum of On-Chain Successes) / (1 + Count of Logs)
-                // This ensures the score GROWS toward 100 rather than jumping there immediately.
-                let total = BigInt(60) 
+                // Calculation: (Baseline 60 * Weight + Sum of On-Chain Successes) / (Weight + Count of Logs)
+                // Using a VIRTUAL_WEIGHT (e.g., 10) prevents the score from "boosting" too fast.
+                const VIRTUAL_WEIGHT = 10;
+                let total = BigInt(60 * VIRTUAL_WEIGHT) 
                 logs.forEach(log => {
                     if (log.args && log.args.value !== undefined) {
                         total += BigInt(log.args.value as any)
                     }
                 })
 
-                const average = Number(total) / (logs.length + 1)
+                const average = Number(total) / (logs.length + VIRTUAL_WEIGHT)
                 setScore(Math.round(average))
             } catch (error) {
                 console.error('Failed to fetch reputation from logs:', error)
