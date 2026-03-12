@@ -56,17 +56,16 @@ export async function GET(request: Request) {
         // Fetch last 15 orders
         const startIndex = Math.max(0, count - 15);
 
-        // Pre-fetch OrderFilled events to find real winners
+        // Unified search range for all logs: 45,000 blocks (~12.5 hours)
+        // This is safe under the 50,000 block public RPC limit
         const latestBlock = await client.getBlockNumber();
-        const fromBlock = latestBlock > BigInt(10000) ? latestBlock - BigInt(10000) : BigInt(0);
-        // Specifically for fills, we look back further (50k blocks ~= 14 hours) to identify old snipers
-        const fillFromBlock = latestBlock > BigInt(50000) ? latestBlock - BigInt(50000) : BigInt(0);
+        const fromBlock = latestBlock > BigInt(45000) ? latestBlock - BigInt(45000) : BigInt(0);
 
         const [fillLogs, cancelLogs, postedLogs] = await Promise.all([
             client.getLogs({
                 address: hookAddress,
                 event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
-                fromBlock: fillFromBlock
+                fromBlock: fromBlock
             }),
             client.getLogs({
                 address: hookAddress,
