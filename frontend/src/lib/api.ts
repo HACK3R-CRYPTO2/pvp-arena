@@ -16,7 +16,7 @@ export function getApi() {
   if (!apiInstance) {
     apiInstance = axios.create({
       baseURL: getApiUrl(),
-      timeout: 10000,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -41,7 +41,7 @@ export function getBackendApi() {
     const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
     backendInstance = axios.create({
       baseURL: url,
-      timeout: 10000,
+      timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
       },

@@ -20,53 +20,53 @@ export async function GET() {
             functionName: 'nextOrderId',
         }) as bigint;
 
-        const orders = [];
         const count = Number(nextOrderId);
 
         // Fetch active orders (limit to last 20 for performance)
         const startIndex = Math.max(0, count - 20);
+        const orderIds = Array.from({ length: count - startIndex }, (_, i) => BigInt(startIndex + i));
 
-        for (let i = startIndex; i < count; i++) {
+        const orderPromises = orderIds.map(async (id) => {
             try {
                 const orderData = await client.readContract({
                     address: hookAddress,
                     abi: (ArenaHookABI as any).abi || ArenaHookABI,
                     functionName: 'orders',
-                    args: [BigInt(i)],
+                    args: [id],
                 }) as any;
 
-                if (!orderData) continue;
+                if (!orderData) return null;
 
-                // viem returns an object if names are in ABI, or an array otherwise
-                // struct Order { address maker; bool sellToken0; uint128 amountIn; uint128 minAmountOut; uint256 expiry; bool active; ... }
                 const active = typeof orderData.active !== 'undefined' ? orderData.active : orderData[5];
+                if (!active) return null;
 
-                if (active) {
-                    const maker = orderData.maker || orderData[0];
-                    const sellToken0 = typeof orderData.sellToken0 !== 'undefined' ? orderData.sellToken0 : orderData[1];
-                    const amountIn = (orderData.amountIn || orderData[2]).toString();
-                    const minAmountOut = (orderData.minAmountOut || orderData[3]).toString();
-                    const expiryRaw = orderData.expiry || orderData[4];
-                    const expiry = new Date(Number(expiryRaw) * 1000).toISOString();
-                    
-                    orders.push({
-                        orderId: i,
-                        maker,
-                        sellToken0,
-                        amountIn,
-                        minAmountOut,
-                        expiry,
-                        active: true,
-                        isExpired: Number(expiryRaw) < Math.floor(Date.now() / 1000),
-                        sellToken: sellToken0 ? 'TKNA' : 'TKNB',
-                        buyToken: sellToken0 ? 'TKNB' : 'TKNA',
-                    });
-                }
+                const maker = orderData.maker || orderData[0];
+                const sellToken0 = typeof orderData.sellToken0 !== 'undefined' ? orderData.sellToken0 : orderData[1];
+                const amountIn = (orderData.amountIn || orderData[2]).toString();
+                const minAmountOut = (orderData.minAmountOut || orderData[3]).toString();
+                const expiryRaw = orderData.expiry || orderData[4];
+                const expiry = new Date(Number(expiryRaw) * 1000).toISOString();
+                
+                return {
+                    orderId: Number(id),
+                    maker,
+                    sellToken0,
+                    amountIn,
+                    minAmountOut,
+                    expiry,
+                    active: true,
+                    isExpired: Number(expiryRaw) < Math.floor(Date.now() / 1000),
+                    sellToken: sellToken0 ? 'TKNA' : 'TKNB',
+                    buyToken: sellToken0 ? 'TKNB' : 'TKNA',
+                };
             } catch (orderError) {
-                console.error(`Skipping order #${i} due to fetch error:`, orderError);
-                continue;
+                console.error(`Skipping order #${id} due to fetch error:`, orderError);
+                return null;
             }
-        }
+        });
+
+        const results = await Promise.all(orderPromises);
+        const orders = results.filter((o): o is NonNullable<typeof o> => o !== null);
 
         return NextResponse.json({ orders: orders.reverse() });
     } catch (error: any) {

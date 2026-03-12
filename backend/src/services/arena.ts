@@ -103,7 +103,7 @@ export class ArenaService {
         await this.syncOrders();
         await this.fundBots();
         this.listenForEvents();
-        this.startBaitLoop();
+        // this.startBaitLoop(); // Disabled per user request
     }
 
     private async syncOrders() {
@@ -113,8 +113,8 @@ export class ArenaService {
                 const order = await (this.arenaHook as any).orders(i);
                 if (order && order.active && !this.activeOrders.has(i)) {
                     this.activeOrders.add(i);
-                    // Check if it's snipable on startup
-                    await this.maybeSnipe(i, order.maker);
+                    // Check if it's snipable on startup (staggered to avoid nonce/gas collisions)
+                    setTimeout(() => this.maybeSnipe(i, order.maker), i * 2000);
                 }
             }
             console.log(`📡 Linked to Hook at ${this.arenaHook.target}. Found ${this.activeOrders.size} active orders.`);
@@ -224,10 +224,6 @@ export class ArenaService {
                 
                 console.log(`🔍 [DIAGNOSTIC] Order #${orderId} | maker=${maker} | sellToken0=${sellToken0} | In=${amountIn.toFixed(4)} | Out=${minAmountOut.toFixed(4)}`);
 
-                // EXTRA SAFETY: Never snipe yourself
-                const alphaBot = this.botService.getBot(1);
-                const isSelfTrade = maker.toLowerCase() === alphaBot?.address.toLowerCase();
-                
                 // 2. Symmetric Profit Calculation
                 let potentialProfit = 0;
                 if (sellToken0) {
@@ -258,21 +254,35 @@ export class ArenaService {
                     return;
                 }
 
-                if (isSelfTrade) {
-                    console.log(`🛡️  [GUARD] Skipping Order #${orderId}: Self-snipe prevention (AlphaMachine is maker).`);
+                // 3. Selection Logic (Per User Request)
+                const allBots = this.botService.getAllBots();
+                const alpha = allBots.find(b => b.id === 1);
+                const beta = allBots.find(b => b.id === 2);
+                
+                let sniper: BotProfile | undefined;
+                const makerIsAlpha = makerAddress.toLowerCase() === alpha?.address.toLowerCase();
+                const makerIsBeta = makerAddress.toLowerCase() === beta?.address.toLowerCase();
+
+                if (makerIsAlpha) {
+                    // Alpha is maker -> Beta is assigned sniper
+                    sniper = beta;
+                } else if (makerIsBeta) {
+                    // Beta is maker -> Alpha is assigned sniper
+                    sniper = alpha;
+                } else {
+                    // Non-bot maker -> Picking random sniper bot
+                    const options = [alpha, beta].filter(b => b !== undefined) as BotProfile[];
+                    sniper = options[Math.floor(Math.random() * options.length)];
+                }
+
+                if (!sniper) {
+                    console.log(`🤷 No sniper selected for Order #${orderId}`);
                     return;
                 }
 
-                // 3. Pick a random bot to snipe (Alpha or Beta)
-                const availableBots = this.botService.getAllBots().filter(b => b.address.toLowerCase() !== makerAddress.toLowerCase());
-                if (availableBots.length === 0) {
-                    console.log(`🤷 No available bots to snipe Order #${orderId}`);
-                    return;
-                }
-                
-                const sniper = availableBots[Math.floor(Math.random() * availableBots.length)];
-                if (!sniper) {
-                    console.log(`🤷 No available bots to snipe Order #${orderId}`);
+                // NUCLEAR PROTECTION: Even without the Alpha block, never snipe yourself
+                if (sniper.address.toLowerCase() === makerAddress.toLowerCase()) {
+                    console.log(`🛡️  [GUARD] Skipping Order #${orderId}: Self-snipe prevention (${sniper.name} is maker).`);
                     return;
                 }
 
@@ -297,6 +307,7 @@ export class ArenaService {
 
                 // 5. Relayer Execution
                 // The ArenaHook strictly requires the 'sentinel' (Alpha) to call triggerOrder.
+                const alphaBot = this.botService.getBot(1);
                 if (!alphaBot) return;
 
                 const hookWithRelayer = this.arenaHook.connect(alphaBot.wallet) as ethers.Contract;

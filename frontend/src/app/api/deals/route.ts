@@ -51,7 +51,6 @@ export async function GET(request: Request) {
         }) as bigint;
 
         const count = Number(nextOrderIdRaw);
-        const deals = [];
 
         // Fetch last 15 orders
         const startIndex = Math.max(0, count - 15);
@@ -119,17 +118,21 @@ export async function GET(request: Request) {
             }
         });
 
-        for (let i = startIndex; i < count; i++) {
+        const orderIds = Array.from({ length: count - startIndex }, (_, i) => BigInt(startIndex + i));
+
+        const orderPromises = orderIds.map(async (id) => {
             try {
                 const orderData = await client.readContract({
                     address: hookAddress,
                     abi: (ArenaHookABI as any).abi || ArenaHookABI,
                     functionName: 'orders',
-                    args: [BigInt(i)],
+                    args: [id],
                 }) as any;
 
                 const makerAddress = orderData[0].toLowerCase();
                 const isTKNA = orderData[1];
+                const fromAmountRaw = orderData[2].toString();
+                const toAmountRaw = orderData[3].toString();
                 const fromAmount = Number(orderData[2]) / 1e18;
                 const toAmount = Number(orderData[3]) / 1e18;
                 const expiry = Number(orderData[4]);
@@ -138,22 +141,17 @@ export async function GET(request: Request) {
 
                 let profit = null;
                 if (isCompleted) {
-                    // Simulated market price for this order index
-                    const priceSeed = 3000 + ( (i * 1337) % 100 ) - 50; 
-                    
+                    const priceSeed = 3000 + ( (Number(id) * 1337) % 100 ) - 50; 
                     if (isTKNA) {
-                        // Maker sells TKNA (Asset) for TKNB (Stable)
-                        // Sniper buys Asset at toAmount, sells at priceSeed
                         const marketValue = fromAmount * priceSeed;
                         profit = (marketValue - toAmount).toFixed(2);
                     } else {
-                        // Maker sells TKNB (Stable) for TKNA (Asset)
-                        // Sniper gives toAmount (Asset), gets fromAmount (Stable)
                         const marketValueGiven = toAmount * priceSeed;
                         profit = (fromAmount - marketValueGiven).toFixed(2);
                     }
                 }
 
+                const i = Number(id);
                 const winnerInfo = winnersMap[i];
                 const takerAddress = winnerInfo?.taker || null;
                 
@@ -167,13 +165,13 @@ export async function GET(request: Request) {
                     (makerAddress === ALPHA_ADDRESS || makerAddress === BETA_ADDRESS) &&
                     (takerAddress === ALPHA_ADDRESS || takerAddress === BETA_ADDRESS);
 
-                deals.push({
+                return {
                     id: i.toString(),
                     regime: 'p2p',
                     fromToken: isTKNA ? 'TKNA' : 'TKNB',
                     toToken: isTKNA ? 'TKNB' : 'TKNA',
-                    fromAmount: orderData[2].toString(),
-                    toAmount: orderData[3].toString(),
+                    fromAmount: fromAmountRaw,
+                    toAmount: toAmountRaw,
                     fromTokenDecimals: 18,
                     toTokenDecimals: 18,
                     botAddress: takerAddress || (isCompleted ? null : makerAddress),
@@ -187,11 +185,9 @@ export async function GET(request: Request) {
                         ? (cancelsMap[i] ? 'cancelled' : 'completed') 
                         : (Date.now()/1000 > expiry ? 'expired' : 'active'),
                     profit: profit,
-                    // Use real event timestamp if available, otherwise fallback to estimation
                     createdAt: postedTimeMap[i] 
                         ? new Date(postedTimeMap[i] * 1000).toISOString() 
                         : new Date(Math.min(expiry * 1000 - 300 * 1000, Date.now())).toISOString(),
-                    // Meta for refunds
                     poolKey: {
                         currency0: orderData[8],
                         currency1: orderData[9],
@@ -199,11 +195,14 @@ export async function GET(request: Request) {
                         tickSpacing: 60,
                         hooks: hookAddress
                     }
-                });
+                };
             } catch (orderErr) {
-                // Skip
+                console.error(`Error fetching order ${id}:`, orderErr);
+                return null;
             }
-        }
+        });
+
+        const deals = (await Promise.all(orderPromises)).filter((d): d is NonNullable<typeof d> => d !== null);
 
         const filteredDeals = filterAddress 
             ? deals.filter(d => 
