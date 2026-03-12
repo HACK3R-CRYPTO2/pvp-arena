@@ -10,6 +10,7 @@ export class ArenaService {
     private arenaHook!: ethers.Contract;
     private agentRegistry!: ethers.Contract;
     private activeOrders: Set<number> = new Set();
+    private lastProcessedBlock: number = 0;
     private marketState = {
         ethPrice: 3000.00,
         volatility: 0.05,
@@ -102,7 +103,11 @@ export class ArenaService {
 
         await this.syncOrders();
         await this.fundBots();
-        this.listenForEvents();
+        
+        const latestBlock = await this.provider.getBlockNumber();
+        this.lastProcessedBlock = latestBlock;
+        this.startEventPolling();
+        
         // this.startBaitLoop(); // Disabled per user request
     }
 
@@ -165,32 +170,73 @@ export class ArenaService {
         }
     }
 
-    private listenForEvents() {
-        this.arenaHook.on('OrderPosted', (orderId, maker, isHuman) => {
-            const id = Number(orderId);
-            
-            // Only process if we haven't already started sniping this order
-            if (!this.activeOrders.has(id)) {
-                this.activeOrders.add(id);
-                const bot = this.botService.getBotByAddress(maker);
-                const name = bot ? bot.name : (isHuman ? "Human" : "Robot");
-                const role = bot ? "[TACTICIAN]" : "[USER]";
-                console.log(`🆕 ${role} ${name} Posted Order #${id}`);
+    private startEventPolling() {
+        console.log(`📡 Event Polling Started from block ${this.lastProcessedBlock}`);
+        setInterval(async () => {
+            try {
+                const latestBlock = await this.provider.getBlockNumber();
+                if (latestBlock <= this.lastProcessedBlock) return;
 
-                // If it's a Human or another bot, trigger a Sniper
-                this.maybeSnipe(id, maker);
+                const fromBlock = this.lastProcessedBlock + 1;
+                const toBlock = latestBlock;
+
+                // 1. Check for new orders
+                const postedLogs = await this.arenaHook.queryFilter(
+                    (this.arenaHook.filters as any).OrderPosted(),
+                    fromBlock,
+                    toBlock
+                );
+
+                for (const log of postedLogs) {
+                    try {
+                        if ('args' in log && log.args) {
+                            const [orderId, maker, isHuman] = log.args;
+                            const id = Number(orderId);
+                            
+                            if (!this.activeOrders.has(id)) {
+                                this.activeOrders.add(id);
+                                const bot = this.botService.getBotByAddress(maker);
+                                const name = bot ? bot.name : (isHuman ? "Human" : "Robot");
+                                const role = bot ? "[TACTICIAN]" : "[USER]";
+                                console.log(`🆕 ${role} ${name} Posted Order #${id}`);
+                                this.maybeSnipe(id, maker);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error processing OrderPosted log:", err);
+                    }
+                }
+
+                // 2. Check for filled orders
+                const filledLogs = await this.arenaHook.queryFilter(
+                    (this.arenaHook.filters as any).OrderFilled(),
+                    fromBlock,
+                    toBlock
+                );
+
+                for (const log of filledLogs) {
+                    if ('args' in log && log.args) {
+                        const [orderId, taker, byAi] = log.args;
+                        const id = Number(orderId);
+                        this.activeOrders.delete(id);
+                        const bot = this.botService.getBotByAddress(taker);
+                        const name = bot ? bot.name : "Unknown";
+                        const role = byAi ? "[SNIPER]" : "[USER]";
+                        console.log(`✅ Clash Resolved! Order #${id} captured by ${role} ${name}`);
+                    }
+                }
+
+                this.lastProcessedBlock = toBlock;
+
+            } catch (e) {
+                // Filter Errors are common on public RPCs, we just log and wait for next interval
+                if (e instanceof Error && e.message.includes('filter not found')) {
+                    // Silently ignore or minimal log, the next queryFilter will create a new filter
+                    return;
+                }
+                console.error("Event polling error:", e);
             }
-        });
-
-        this.arenaHook.on('OrderFilled', (orderId, taker, byAi) => {
-            const id = Number(orderId);
-            this.activeOrders.delete(id);
-            const bot = this.botService.getBotByAddress(taker);
-            const name = bot ? bot.name : "Unknown";
-            const role = byAi ? "[SNIPER]" : "[USER]";
-            
-            console.log(`✅ Clash Resolved! Order #${id} captured by ${role} ${name}`);
-        });
+        }, 8000); // 8 second polling interval
     }
 
     private async maybeSnipe(orderId: number, makerAddress: string) {
