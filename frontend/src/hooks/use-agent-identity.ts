@@ -67,36 +67,18 @@ export function useAgentReputation(agentId: number | undefined) {
     const [loading, setLoading] = useState(false)
 
     useEffect(() => {
-        if (!agentId || !publicClient) return
+        if (!agentId) return
 
         async function fetchReputation() {
             setLoading(true)
             try {
-                // Query all NewFeedback events for this agent
-                const logs = await publicClient!.getLogs({
-                    address: P2P_TRADING_ARENA_ADDRESSES.AgentReputation as `0x${string}`,
-                    event: parseAbiItem('event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)'),
-                    args: {
-                        agentId: BigInt(agentId!)
-                    },
-                    fromBlock: BigInt(46405000)
-                })
-
-                // Calculation: (Baseline 60 * Weight + Sum of On-Chain Successes) / (Weight + Count of Logs)
-                // Using a VIRTUAL_WEIGHT (e.g., 10) prevents the score from "boosting" too fast.
-                const VIRTUAL_WEIGHT = 10;
-                let total = BigInt(60 * VIRTUAL_WEIGHT) 
-                logs.forEach(log => {
-                    if (log.args && log.args.value !== undefined) {
-                        total += BigInt(log.args.value as any)
-                    }
-                })
-
-                const average = Number(total) / (logs.length + VIRTUAL_WEIGHT)
-                setScore(Math.round(average))
+                const res = await fetch(`/api/reputation?agentId=${agentId}`)
+                if (!res.ok) throw new Error('Reputation fetch failed')
+                const data = await res.json()
+                setScore(data.score || 20)
             } catch (error) {
-                console.error('Failed to fetch reputation from logs:', error)
-                setScore(60) // Fallback
+                console.error('Failed to fetch reputation from API:', error)
+                setScore(20) // Fallback to baseline
             } finally {
                 setLoading(false)
             }
