@@ -8,7 +8,7 @@ type ViewMode = 'bot-arena' | 'pvp-arena'
 interface Stats {
   totalTrades: number
   tradesPerHour: number
-  lifiSwaps: number
+  reactiveExecs: number
   totalVolume: number
   totalPnl?: number | null
 }
@@ -35,7 +35,7 @@ export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBar
         setStats({
           totalTrades: s.totalTrades,
           tradesPerHour: s.tradesPerHour,
-          lifiSwaps: s.lifiSwaps,
+          reactiveExecs: s.reactiveExecs,
           totalVolume: s.totalVolume,
           totalPnl: s.totalPnl ?? null,
         })
@@ -86,9 +86,9 @@ export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBar
 
         {/* Swap Metric */}
         <div className="flex flex-col group transition-all">
-          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">Lifi</span>
+          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">Reactive</span>
           <div className="flex items-baseline gap-1">
-             <span className="text-sm font-mono font-bold text-foreground">{stats.lifiSwaps}</span>
+             <span className="text-sm font-mono font-bold text-foreground">{stats.reactiveExecs}</span>
              <span className="text-[10px] text-muted-foreground/60">SWPS</span>
           </div>
         </div>
@@ -147,17 +147,17 @@ export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBar
         </div>
       </div>
 
-      {/* LI.FI Swaps */}
+      {/* REACTIVE EXECS */}
       <div className="glass-panel border border-white/10 bg-black/60 rounded-lg p-5 group hover:border-cyan-400/50 transition-all duration-300 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1 h-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
         <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-cyber tracking-[0.2em] mb-3 opacity-70 group-hover:opacity-100 transition-opacity">
           <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
-          <span>LI.FI EXECS</span>
+          <span>REACTIVE EXEC</span>
         </div>
         <div className="font-mono font-bold text-2xl text-white tracking-tighter">
-          {stats.lifiSwaps} <span className="text-[10px] ml-1 font-normal uppercase opacity-30 tracking-widest">swps</span>
+          {stats.reactiveExecs} <span className="text-[10px] ml-1 font-normal uppercase opacity-30 tracking-widest">snps</span>
         </div>
       </div>
 

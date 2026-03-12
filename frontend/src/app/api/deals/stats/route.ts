@@ -106,7 +106,7 @@ export async function GET(request: Request) {
             stats: {
                 totalTrades: filterAddress ? botTrades : count,
                 tradesPerHour: filterAddress ? botTrades : (count / 1.5), // Show activity over last 90 mins for demo
-                lifiSwaps: filterAddress ? (botTrades > 2 ? 1 : 0) : Math.floor(count / 3),
+                reactiveExecs: filterAddress ? (botTrades > 2 ? 1 : 0) : Math.floor(count / 3),
                 totalVolume: filterAddress ? botVolume : globalVolume,
                 totalPnl: filterAddress ? botPnl : globalPnl,
             }

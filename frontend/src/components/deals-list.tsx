@@ -99,12 +99,12 @@ export function DealsList({ viewMode, botAddress, botLabel, limit }: DealsListPr
 
   function regimeLabel(regime?: string) {
     if (!regime) return 'P2P'
-    if (regime.startsWith('lifi')) return 'LI.FI'
+    if (regime.startsWith('lifi') || regime.startsWith('reactive')) return 'REACTIVE'
     return 'P2P'
   }
 
   function regimeStyle(regime?: string) {
-    if (regime && regime.startsWith('lifi')) {
+    if (regime && (regime.startsWith('lifi') || regime.startsWith('reactive'))) {
       return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
     }
     return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
