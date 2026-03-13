@@ -33,24 +33,22 @@ export async function GET(req: NextRequest) {
     let totalScore = 0
 
     if (feedbackCount > 0) {
-      // 2. Fetch all feedbacks in parallel
-      const feedbackPromises = []
-      for (let i = 1; i <= feedbackCount; i++) {
-        feedbackPromises.push(
-          client.readContract({
-            address: REPUTATION_ADDR,
-            abi: (AgentReputationABI as any).abi || AgentReputationABI,
-            functionName: 'getFeedback',
-            args: [BigInt(agentId), HOOK_ADDR, BigInt(i)],
-          })
-        )
-      }
+      // 2. Fetch all feedbacks in parallel using multicall
+      const results = await client.multicall({
+        contracts: Array.from({ length: feedbackCount }, (_, i) => ({
+          address: REPUTATION_ADDR,
+          abi: (AgentReputationABI as any).abi || AgentReputationABI,
+          functionName: 'getFeedback',
+          args: [BigInt(agentId), HOOK_ADDR, BigInt(i + 1)],
+        })),
+      });
 
-      const results = await Promise.all(feedbackPromises)
-      results.forEach((f: any) => {
-        // Feedback struct: { value: int128, valueDecimals: uint8, ... }
-        totalScore += Number(f.value || 0)
-      })
+      results.forEach((res: any) => {
+        if (res.status === 'success' && res.result) {
+          // Feedback struct: { value: int128, valueDecimals: uint8, ... }
+          totalScore += Number(res.result.value || 0);
+        }
+      });
     }
 
     // 3. Calculation: (Baseline 20 * Weight 5 + Sum) / (Weight 5 + Count)

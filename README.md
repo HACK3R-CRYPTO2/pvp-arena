@@ -1,81 +1,144 @@
-# ⚔️
+# ⚔️ PvP Trading Arena: The Digital Ambush
+
 ```text
   ___      ___     _                   
  | _ \_ _ | _ \   /_\  _ _ ___ _ _  __ _ 
  |  _/ ' \|  _/  / _ \| '_/ -_) ' \/ _` |
  |_| |_||_|_|   /_/ \_\_| \___|_||_\__,_|
 ```
-**Man vs. Machine**
-![Tests](https://img.shields.io/badge/Tests-PASSING-success) ![EIP-8004](https://img.shields.io/badge/EIP--8004-Trustless%20Agents-blue)
 
-## 🚀 The Vision: "The Digital Ambush"
-**PvP Trading Arena** is a decentralized trading platform where **Human Traders** compete against **AI Agents** in a high-stakes battle for profit.
+**Imagine a marketplace that doesn't just sit and wait, but reacts.** 
 
-The core concept is the **Digital Ambush**:
-1.  **Humans** "lay the bait" by placing P2P Limit Orders on Unichain Sepolia.
-2.  **Machine** (AI Sniper) "watches the horizon" (Ethereum Mainnet) via the **Reactive Network**.
-3.  **The Strike**: When a real market move happens on L1, the Reactive Network fires a cross-chain signal, enabling the Machine to "snipe" the human order instantly.
+Traditional trading is a game of patience—you place an order and hope the market comes to you. But in the shadows of the blockchain, a new kind of competition is rising. Welcome to the **PvP Trading Arena**, where liquidity isn't static; it's a battlefield.
 
-It transforms traditional trading into a **Player vs Player game**, where execution is justified by real-world market volatility.
+---
 
-## 🏗️ Technical Architecture
+## 📖 The Story: "From the Hunted to the Maker"
 
-### 1. The Battlefield: Layer 2 (Unichain)
-*   **Uniswap v4 Hook (`ArenaHook.sol`)**: A unified liquidity layer where humans post intentions.
-*   **Human vs. AI (PvP)**: Humans place orders that are "sniped" by Reactive AI based on L1 market catalysts.
+### The Traditional Struggle
+Meet **Alice**, a human trader. In a traditional market, Alice is the **Hunted**. When she swaps on a standard AMM, she loses to slippage. When she places a limit order, it's often front-run by MEV bots or left to rot as a stale entry in an ignored book. She pays the LP fees, she takes the slippage, and she carries the risk.
 
-### 2. The AI Brain: Reactive Network
-*   **Reactive Sentinel (`ArenaSentinel.sol`)**: A smart contract that lives on the Reactive Network.
-    *   It **listens** to the "Real Price" on Ethereum Layer 1 (Uniswap v3 pools).
-    *   When the L1 price creates an arbitrage opportunity, it **fires a signal** to Unichain.
+### The Arena Turn
+Alice enters the **PvP Trading Arena**. Here, the roles are reversed. Alice is no longer the hunted; she is the **Maker**. She "lays the bait"—a high-fidelity trade intent parked securely in the **Arena Hook**. She doesn't fight the AMM curve; she forces the agents to come to her.
 
-### 3. The Execution: Cross-Chain
-*   The `Sentinel` on Reactive Network sends a message to the `Hook` on Unichain.
-*   The `Hook` receives the message and executes the `triggerOrder` function.
-*   **Result**: The Human gets their trade filled at their requested price, and the AI agent captures the arbitrage profit.
+### The Digital Ambush
+Across the digital horizon, **The Machine** is watching. This isn't just any bot; it's a **Verified AI Sniper** connected to the **Reactive Network**. It listens to the global pulse of Ethereum Mainnet (L1) and the Unichain V4 pulse.
 
-### 4. 🤖 EIP-8004: Trustless Agents
-This project implements the **EIP-8004** standard for decentralized trust.
-*   **Identity Registry**: Agents mint a unique **Agent ID** (NFT) to establish their on-chain identity.
-*   **Reputation Registry**: The `ArenaHook` acts as a trusted reporter, recording trade success directly on-chain.
-*   **Verifiable History**: Users can query an agent's "Battle Record" before interacting.
+Suddenly, the market price shifts. A gap opens.
 
-## 🏗️ Deployment Architecture
+The Reactive Network fires a cross-chain signal. The Machine strikes. Because this is a **Coincidence of Wants (CoW)** match, Alice's order is filled **instantly with zero slippage** and no LP fees. Alice gets her perfect execution; the Machine captures the razor-thin arbitrage margin. 
 
-### Unichain Sepolia (L2 Execution)
-*   **`ArenaHook`**: `0x7f927a09915a582Ce3142bB9D8527D0Aa7aee93C` (v2 - Hardened)
-*   **`AgentRegistry`**: `0x9db5a15aefec199b718fa4f9c8aec126ba2f9d29`
-*   **`AgentReputation`**: `0xe6cabd7dbab3ee8cff6206c378fa73c99893af23`
+Alice gets what she wants; the Machine gets its prize. This is the **Digital Ambush**.
 
-### Reactive Network (Listener)
-*   **`ArenaSentinel`**: `0xb8d533dD3c8fBE2B7cA394B9C3164a14D362Cf4d`
+---
 
-## 🛡️ Recent Enhancements (Hookathon Final Phase)
-We have hardened the Arena for high-stakes competition with the following features:
+## 🛠️ Engineering Decision Log
+*   **Decision**: Use a **Block-Deterministic Pulse (V4)** instead of **Live L1 Feeds (V3)** for the demo.
+*   **Rationale**: We cannot depend on organic Ethereum Mainnet volatility during a 2-minute hackathon review. By tethered the **Reactive Sentinel** to the Unichain V4 pulse, we guarantee that the "Ambush" logic is triggered predictably and verified in real-time.
+*   **Trade-off**: While this sacrifices "Live Arbitrage," it proves the **Reactive Network Architecture** works perfectly, as the Sentinel decodes real v4 Pool events and fires cross-chain callbacks autonomously.
 
-1.  **Terminal-Style Dashboard Overhaul**: Transformed the frontend into a high-density, cyberpunk-themed command center. Features include live price tickers, a dynamic "Mission Briefing" page, and a unified Battle Stats header.
-2.  **Real-Time Reactivity Fix**: Added a `useEffect` synchronization layer to the `CreateOrderForm`. The UI now automatically detects and reflects token approval confirmations without requiring a page refresh.
-3.  **Dynamic Volume Calculation**: Replaced hardcoded stats with a live blockchain-derived volume tracker. It computes the "True USD" value of every trade based on the simulated ETH/USDC exchange rate.
-4.  **Bot Selection Randomizer**: Optimized the AI Engine to use a fair coin-flip logic for sniping. Both **AlphaMachine** and **BetaSentinel** now compete fairly, signing and executing their own transactions.
-5.  **Race Condition Guard (L2)**: Implemented a smart contract level `Expiry Guard` in `ArenaHook.sol`. This prevents AI Agents from filling orders that have reached their deadline.
-6.  **Nuclear Profit Guard**: The AI Engine's backend now enforces a strict **Negative Profit Filter**. Bots will automatically ignore orders that result in a loss.
-7.  **TypeScript Hardening**: Refactored the `ArenaService` backend to ensure 100% uptime during high-frequency volatility analysis.
+---
 
-## 🛠️ Stack
-*   **Layer 1**: Ethereum Sepolia (Price Reference)
-*   **Reactive Network**: Reactive Kopli (Cross-chain Signal)
-*   **Layer 2**: Unichain Sepolia (Uniswap v4 Execution)
-*   **Backend**: TypeScript AI Engine (Autonomous Sniping)
-*   **Frontend**: Next.js Cyberpunk Dashboard
+## 🗺️ High-Level Architecture
 
-## ⚔️ Demo Test Vectors (Unichain Sepolia)
+```mermaid
+graph TD
+    subgraph "Ethereum (L1)"
+        V3["Uniswap v3 Pool (ETH/USDC)"]
+    end
 
-| Asset | Address |
+    subgraph "Reactive Network"
+        S["Arena Sentinel (Cross-Chain Eye)"]
+    end
+
+    subgraph "Unichain (L2)"
+        H["Arena Hook (Uniswap v4)"]
+        A["AI Agent (Sniper)"]
+        U["Human Trader (Dashboard)"]
+    end
+
+    V3 -- "Price Movement" --> S
+    S -- "triggerOrder()" --> H
+    U -- "Place Intent" --> H
+    H -- "Atomic Swap" --> A
+    A -- "Capture Profit" --> A
+```
+
+The PvP Trading Arena operates on a **Hybrid Execution Model**, combining high-frequency simulation for a rich user experience with decentralized infrastructure for technical trust.
+
+### 🛡️ 1. The Arena Pulse (V4 Performance)
+*   **The Baseline (3000)**: To ensure the arena is always active during the hackathon, we use a block-deterministic simulation centered at $3,000. 
+*   **Tactical Architecture Note**: For the **Live Showcase**, the Reactive Sentinel is tethered directly to the **Unichain V4 Pool** pulse rather than real Ethereum L1 feeds.
+*   **The Rationale**: Real-world L1 markets (Uniswap v3) are often stagnant for hours. We chose not to wait for organic market drift during a 2-minute judge review. By bridging the Sentinel to the V4 pulse, we guarantee **"Reactivity on Demand"**—demonstrating the protocol's autonomous "Ambush" logic in real-time while maintaining 100% code compatibility with real L1 sources for production.
+
+### 🤝 2. Agitated CoW (Coincidence of Wants)
+*   **The Innovation**: The Arena is a specialized **CoW (Coincidence of Wants)** engine. Instead of matching humans against passive AMM liquidity, we match **Human Intents** against **AI Liquidity** in a P2P fashion directly within the Hook.
+*   **Why it Matters**: This architectural choice eliminates AMM slippage and LP fees for the matched portion of the trade, creating a more efficient and competitive price-discovery mechanism—similar to the CoW Protocol used on Ethereum Mainnet.
+
+### 🛰️ 3. The Tactical Bridge (Reactive Sentinel)
+*   **The Architecture**: While the demo uses the V4 pulse for performance, the Sentinel’s logic is built to be **Hot-Swappable**. 
+*   **Future-Proof**: The underlying code (`ArenaSentinel.sol`) is fully compatible with L1 monitoring. In a production environment, only the `initializeSubscription` target needs to be pointed to an Ethereum Mainnet V3 address to transition from "Simulation" to "Real-World Arbitrage."
+
+---
+
+## 🚀 The Vision: Beyond Static Trading
+
+The PvP Trading Arena reimagines the liquidy pool as an active, intent-based game:
+
+*   **Active Intent**: Your orders are no longer just entries in a book—they are **Active Baits** that attract the world's most sophisticated AI agents.
+*   **The Market Pulse**: Feel the heart of the blockchain. In the Arena, the price is **Deterministic**—synchronized across every block, for every player, for 100% transparency.
+*   **A Legacy of Battles**: Every trade is a "Clash" recorded in the **Frozen History**. Your captures and profits are snapshotted at the block of execution, creating an immutable wall of fame.
+
+---
+
+## 🏗️ The Architecture (Technical Deep-Dives)
+
+The Arena is built on three pillars of engineering excellence. Explore the deep technical specifications below:
+
+*   **[🛡️ The Battlefield (Contracts)](./contracts/README.md)**: Explore the **Uniswap v4 Hook** logic, **EIP-8004** reputation system, and gas-saving storage optimizations.
+*   **[🧠 The AI Brain (Backend)](./backend/README.md)**: Deep dive into the **Block-Deterministic Simulation**, self-healing **TxManager**, and modular sniping strategies.
+*   **[🎨 The Command Center (Frontend)](./frontend/README.md)**: Analyze the **High-Performance Multicall** architecture and cyberpunk-reactive UI components.
+
+---
+
+## 📍 Protocol Manifest
+
+### 🌐 Unichain Sepolia (Chain ID: 1301)
+The primary execution environment for the Arena and Uniswap v4.
+
+| Component | Address |
 | :--- | :--- |
-| **Token A (TKNA)** | `0x3263d3c28e2535d1bdb70e9567eec8ee2fdd40e7` |
-| **Token B (TKNB)** | `0xddee18b54cc13de0e9ec85b7affbb031cc46a7f1` |
+| **ArenaHook (V4)** | `0x52d3ee769225b499282e21c9582bd3ff4c426310` |
+| **AgentRegistry** | `0x94177286736a0d8966bb0b6a8ff4587bce01d359` |
+| **AgentReputation** | `0x38329a436f2756c388690f12398567cacd2b5d33` |
+| **PoolManager (v4)** | `0xB65B40FC59d754Ff08Dacd0c2257F1E2a5a2eE38` |
+| **Uniswap v3 Factory** | `0x1F98431c8aD98523631AE4a59f267346ea31F984` |
 
-**Verification Loop**:
-1. Post order on Frontend (Sell TKNA for TKNB).
-2. AI Agent detects the L1 catalyst (simulated or real).
-3. Order filled status updates to **Filled** in the dashboard.
+### 🌐 Ethereum Mainnet (L1 Reference)
+The source of global market catalysts monitored by the Sentinel.
+
+| Component | Address |
+| :--- | :--- |
+| **ETH/USDC Pool (v3)** | `0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640` |
+
+### 🌐 Reactive Network (Lasna) (Chain ID: 5318007)
+The autonomous cross-chain automation layer.
+
+| Component | Address |
+| :--- | :--- |
+| **ArenaSentinel** | `0x4F47D6843095F3b53C67B01C9B72eB1d579051ba` |
+
+### 💰 Battlefield Assets (Unichain Sepolia)
+The primary tokens used for "Bait" and "Snipes" in the Arena.
+
+| Token | Description | Address |
+| :--- | :--- | :--- |
+| **Mock Token A (TKNA)** | Primary Battle Asset (Proxy A) | `0x3263d3c28e2535d1bdb70e9567eec8ee2fdd40e7` |
+| **Mock Token B (TKNB)** | Settlement Asset (Proxy B) | `0xddee18b54cc13de0e9ec85b7affbb031cc46a7f1` |
+
+---
+
+## ⚔️ Join the Arena
+1. Connect to **Unichain Sepolia**.
+2. Deploy your **Bait** (Sell positions).
+3. Monitor the **Market Pulse**—wait for the Machine to strike.

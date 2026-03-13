@@ -26,7 +26,7 @@ contract ArenaSentinelTest is Test {
         systemMock = new MockSystemContract();
         vm.etch(SYSTEM_ADDR, address(systemMock).code);
 
-        sentinel = new ArenaSentinel(arenaHook, beneficiary, 1);
+        sentinel = new ArenaSentinel(arenaHook, beneficiary, 1, address(0));
     }
 
     function test_React_EmitsCallback() public {
@@ -43,26 +43,23 @@ contract ArenaSentinelTest is Test {
         uint160 highPriceSqrt = uint160(55 * 2 ** 96);
 
         // 3. Mock Log
-        // Topic0 = SWAP
-        bytes32 topic0 = 0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67;
-
-        // Data: amount0, amount1, sqrtPriceX96, liquidity, tick
-        bytes memory data = abi.encode(
-            int256(100),
-            int256(-100),
+        bytes memory logData = abi.encode(
+            int128(100),
+            int128(-100),
             highPriceSqrt,
             uint128(1000),
-            int24(500)
+            int24(500),
+            uint24(3000)
         );
 
         IReactive.LogRecord memory log = IReactive.LogRecord({
-            chain_id: 11155111, // Sepolia
+            chain_id: 1301, // ORIGIN_CHAIN_ID
             _contract: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
-            topic_0: uint256(topic0),
+            topic_0: 0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f, // SWAP_TOPIC_0
             topic_1: 0,
             topic_2: 0,
             topic_3: 0,
-            data: data,
+            data: logData,
             block_number: 100,
             op_code: 0,
             block_hash: 0,

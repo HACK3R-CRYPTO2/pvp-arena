@@ -6,15 +6,17 @@ import { P2P_TRADING_ARENA_ADDRESSES } from '@/config/contracts'
 import { useEffect, useState } from 'react'
 import { parseAbiItem } from 'viem'
 
+import { useMemo } from 'react';
+
 // Demo Fallbacks for Hackathon
-const ALPHA_FALLBACK = '0xd2df53d9791e98db221842dd085f4144014bbe2a'.toLowerCase();
+const ALPHA_FALLBACK = '0xd2df53d9791e98db221842dd885f4144014bbe2a'.toLowerCase();
 const BETA_FALLBACK = '0x84a78a6f73ac2b74c457965f38f3afac9a34a6cc'.toLowerCase();
 
 export function useAgentIdentity(address: string | undefined) {
     const { address: currentAccount } = useAccount();
     const registryAddress = P2P_TRADING_ARENA_ADDRESSES.AgentRegistry as `0x${string}`;
 
-    // Fetch dynamic bot addresses from Registry (demo uses ID 1 and 2)
+    // Fetch dynamic bot addresses from Registry
     const { data: alphaWallet } = useReadContract({
         address: registryAddress,
         abi: (AgentRegistryABI as any).abi || AgentRegistryABI,
@@ -29,36 +31,31 @@ export function useAgentIdentity(address: string | undefined) {
         args: [BigInt(2)],
     });
 
-    const alphaAddr = (alphaWallet as string)?.toLowerCase() || ALPHA_FALLBACK;
-    const betaAddr = (betaWallet as string)?.toLowerCase() || BETA_FALLBACK;
-    const targetAddr = address?.toLowerCase();
-    const meAddr = currentAccount?.toLowerCase();
+    return useMemo(() => {
+        const alphaAddr = (alphaWallet as string)?.toLowerCase() || ALPHA_FALLBACK;
+        const betaAddr = (betaWallet as string)?.toLowerCase() || BETA_FALLBACK;
+        const targetAddr = address?.toLowerCase();
+        const meAddr = currentAccount?.toLowerCase();
 
-    let name = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Unknown';
-    let isBot = false;
-    let isMe = false;
+        let name = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Unknown';
+        let isBot = false;
+        let isMe = false;
 
-    if (targetAddr) {
-        // Priority 1: Check Bot Addresses (takes precedence over 'You' if shared)
-        if (targetAddr === alphaAddr) {
-            name = 'AlphaMachine';
-            isBot = true;
-        } else if (targetAddr === betaAddr) {
-            name = 'BetaSentinel';
-            isBot = true;
-        } 
-        // Priority 2: Check Session
-        else if (targetAddr === meAddr) {
-            name = 'You';
-            isMe = true;
+        if (targetAddr) {
+            if (targetAddr === alphaAddr) {
+                name = 'AlphaMachine';
+                isBot = true;
+            } else if (targetAddr === betaAddr) {
+                name = 'BetaSentinel';
+                isBot = true;
+            } else if (targetAddr === meAddr) {
+                name = 'You';
+                isMe = true;
+            }
         }
-    }
 
-    return {
-        name,
-        isBot,
-        isMe
-    }
+        return { name, isBot, isMe };
+    }, [address, currentAccount, alphaWallet, betaWallet]);
 }
 
 export function useAgentReputation(agentId: number | undefined) {

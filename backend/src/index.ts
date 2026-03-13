@@ -6,7 +6,11 @@ import { ArenaService } from './services/arena.js';
 
 async function main() {
     try {
-        const provider = new ethers.JsonRpcProvider(CONFIG.L2_RPC_URL);
+        const provider = new ethers.JsonRpcProvider(CONFIG.L2_RPC_URL, undefined, {
+            staticNetwork: true,
+        });
+        // @ts-ignore - ethers v6 request options
+        provider._getConnection().timeout = 30000;
         const botService = new BotService(provider);
         const arena = new ArenaService(provider, botService, CONFIG.L2_HOOK_ADDRESS);
 
@@ -77,9 +81,9 @@ async function main() {
             res.end();
         });
 
-        const PORT = 3001;
+        const PORT = process.env.PORT || 3001;
         server.listen(PORT, () => {
-            console.log(`🌐 Backend Data API listening on http://localhost:${PORT}/status`);
+            console.log(`🌐 Backend Data API listening on port ${PORT}`);
         });
 
     } catch (error) {

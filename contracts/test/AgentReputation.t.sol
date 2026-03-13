@@ -14,6 +14,7 @@ contract AgentReputationTest is Test {
     function setUp() public {
         registry = new AgentRegistry();
         reputation = new AgentReputation(address(registry));
+        reputation.setAuthorizedHook(makeAddr("client"), true);
     }
 
     function test_GiveFeedback() public {

@@ -3,15 +3,22 @@ import { BotService, BotProfile } from './bots.js';
 import ArenaHookABI from '../abi/ArenaHook.json' with { type: 'json' };
 import AgentRegistryABI from '../abi/AgentRegistry.json' with { type: 'json' };
 import { CONFIG } from '../config.js';
+import { EventService } from './EventService.js';
+import { StrategyService, MarketState } from './StrategyService.js';
+import { TxManager } from './TxManager.js';
 
 export class ArenaService {
     private provider: ethers.JsonRpcProvider;
     private botService: BotService;
+    private eventService!: EventService;
+    private strategyService: StrategyService;
+    private txManager: TxManager;
+    
     private arenaHook!: ethers.Contract;
     private agentRegistry!: ethers.Contract;
+    
     private activeOrders: Set<number> = new Set();
-    private lastProcessedBlock: number = 0;
-    private marketState = {
+    private marketState: MarketState = {
         ethPrice: 3000.00,
         volatility: 0.05,
         lastUpdate: Date.now()
@@ -20,49 +27,64 @@ export class ArenaService {
     constructor(provider: ethers.JsonRpcProvider, botService: BotService, hookAddress: string) {
         this.provider = provider;
         this.botService = botService;
+        this.strategyService = new StrategyService();
+        this.txManager = new TxManager();
 
-        // Use AlphaBot's wallet as the primary interaction point for the service,
-        // but we'll switch wallets depending on who is performing the action.
         const alpha = botService.getBot(1);
         if (!alpha) throw new Error("AlphaBot not found");
 
         this.arenaHook = new ethers.Contract(hookAddress, ArenaHookABI.abi, alpha.wallet);
         this.agentRegistry = new ethers.Contract(CONFIG.AGENT_REGISTRY_ADDRESS, AgentRegistryABI.abi, alpha.wallet);
 
-        // Start market price simulation loop
-        this.startMarketSimulation();
+        // Sub-services initialization happens in start() to ensure block state is ready
     }
 
-    private startMarketSimulation() {
-        setInterval(() => {
-            // Randomly move price by +/- small amount
-            const change = (Math.random() - 0.5) * 2; // -1 to +1
-            this.marketState.ethPrice = parseFloat((this.marketState.ethPrice + change).toFixed(2));
-            this.marketState.volatility = parseFloat((Math.random() * 2).toFixed(2));
-            this.marketState.lastUpdate = Date.now();
-        }, 5000);
+    private async startMarketSimulation() {
+        // Sync initial state
+        const block = await this.provider.getBlockNumber();
+        this.updateMarketState(block);
+
+        // Update on every block
+        this.provider.on('block', (blockNumber) => {
+            this.updateMarketState(blockNumber);
+        });
+    }
+
+    private updateMarketState(blockNumber: number) {
+        this.marketState.ethPrice = this.strategyService.getSimulatedPrice(blockNumber);
+        // Volatility is also deterministic based on block to keep things synced
+        const volBase = Math.abs(Math.sin(blockNumber / 50) * 2);
+        this.marketState.volatility = parseFloat(volBase.toFixed(2));
+        this.marketState.lastUpdate = Date.now();
     }
 
     public getMarketState() {
         return this.marketState;
     }
 
-    // --- Identity Resolution (Local ENS) ---
+    private nameCache: Map<string, string> = new Map();
+    private addressCache: Map<string, string> = new Map();
 
     async resolveName(name: string): Promise<string | null> {
+        const lowerName = name.toLowerCase().replace('.pvparena.eth', '');
+        if (this.nameCache.has(lowerName)) return this.nameCache.get(lowerName)!;
+
         try {
             const registry = this.agentRegistry;
-            if (!registry) return null;
             const nextId = await (registry as any).nextAgentId();
-            const lowerName = name.toLowerCase().replace('.pvparena.eth', '');
+            
+            // Limit search for performance
+            const maxId = Math.min(Number(nextId), 20);
 
-            for (let i = 1; i < Number(nextId); i++) {
+            for (let i = 1; i < maxId; i++) {
                 const nameBytes = await (registry as any).getMetadata(i, "name");
-                if (nameBytes === '0x' || !nameBytes) continue;
+                if (!nameBytes || nameBytes === '0x') continue;
                 
                 const agentName = ethers.toUtf8String(nameBytes).toLowerCase();
                 if (agentName === lowerName || agentName.includes(lowerName)) {
-                    return await (registry as any).getAgentWallet(i);
+                    const wallet = await (registry as any).getAgentWallet(i);
+                    this.nameCache.set(lowerName, wallet);
+                    return wallet;
                 }
             }
         } catch (e) {
@@ -72,18 +94,22 @@ export class ArenaService {
     }
 
     async reverseResolve(address: string): Promise<string | null> {
+        const target = address.toLowerCase();
+        if (this.addressCache.has(target)) return this.addressCache.get(target)!;
+
         try {
             const registry = this.agentRegistry;
-            if (!registry) return null;
             const nextId = await (registry as any).nextAgentId();
-            const target = address.toLowerCase();
+            const maxId = Math.min(Number(nextId), 20);
 
-            for (let i = 1; i < Number(nextId); i++) {
+            for (let i = 1; i < maxId; i++) {
                 const walletAddress = await (registry as any).getAgentWallet(i);
                 if (walletAddress && walletAddress.toLowerCase() === target) {
                     const nameBytes = await (registry as any).getMetadata(i, "name");
-                    if (nameBytes !== '0x' && nameBytes) {
-                        return ethers.toUtf8String(nameBytes) + ".pvparena.eth";
+                    if (nameBytes && nameBytes !== '0x') {
+                        const name = ethers.toUtf8String(nameBytes) + ".pvparena.eth";
+                        this.addressCache.set(target, name);
+                        return name;
                     }
                 }
             }
@@ -94,21 +120,67 @@ export class ArenaService {
     }
 
     async start() {
-        console.log("⚔️  Arena Service Online");
+        console.log("⚔️  Arena Service Online (Modular v2)");
         console.log("------------------------------------------");
-        this.botService.getAllBots().forEach(bot => {
-            console.log(`🤖 Bot: ${bot.name} | [${bot.strategy}] | ${bot.address}`);
-        });
-        console.log("------------------------------------------");
-
-        await this.syncOrders();
+        
         await this.fundBots();
         
-        const latestBlock = await this.provider.getBlockNumber();
-        this.lastProcessedBlock = latestBlock;
-        this.startEventPolling();
+        // Ensure bots are registered in AgentRegistry
+        const bots = this.botService.getAllBots();
+        for (const bot of bots) {
+            try {
+                const walletAddr = await (this.agentRegistry as any).getAgentWallet(bot.id);
+                if (walletAddr === ethers.ZeroAddress) {
+                    console.log(`🆔 [IDENT-REG] Registering ${bot.name} (Agent #${bot.id})...`);
+                    const registryWithBot = new ethers.Contract(CONFIG.AGENT_REGISTRY_ADDRESS, AgentRegistryABI.abi, bot.wallet);
+                    const tx = await (registryWithBot as any).register();
+                    await tx.wait();
+                    
+                    // Set metadata (name)
+                    const nameBytes = ethers.toUtf8Bytes(bot.name.replace('.pvparena.eth', ''));
+                    await (registryWithBot as any).setMetadata(bot.id, "name", nameBytes);
+                    
+                    console.log(`✅ [IDENT-REG] ${bot.name} successfully registered and configured.`);
+                }
+            } catch (e) {
+                console.error(`❌ [IDENT-REG] Failed to register ${bot.name}:`, e);
+            }
+        }
         
-        // this.startBaitLoop(); // Disabled per user request
+        const latestBlock = await this.provider.getBlockNumber();
+        this.eventService = new EventService(
+            this.provider,
+            this.arenaHook.target as string,
+            ArenaHookABI.abi,
+            latestBlock
+        );
+
+        // Wire up listeners
+        this.eventService.on('OrderPosted', (ev) => {
+            if (!this.activeOrders.has(ev.orderId)) {
+                this.activeOrders.add(ev.orderId);
+                const bot = this.botService.getBotByAddress(ev.maker);
+                const name = bot ? bot.name : (ev.isHuman ? "Human" : "Robot");
+                console.log(`🆕 [EVENT] ${name} Posted Order #${ev.orderId}`);
+                this.maybeSnipe(ev.orderId, ev.maker);
+            }
+        });
+
+        this.eventService.on('OrderFilled', (ev) => {
+            this.activeOrders.delete(ev.orderId);
+            const bot = this.botService.getBotByAddress(ev.taker);
+            const name = bot ? bot.name : "Unknown";
+            const role = ev.byAi ? "[SNIPER]" : "[TAKER]";
+            console.log(`✅ Clash Resolved! Order #${ev.orderId} captured by ${role} ${name}`);
+        });
+
+        this.eventService.start();
+        this.startMarketSimulation();
+        
+        // Initial Sync
+        await this.syncOrders();
+        
+        console.log(`📡 [SYNC] Arena fully synchronized with ${this.activeOrders.size} orders.`);
     }
 
     private async syncOrders() {
@@ -146,250 +218,98 @@ export class ArenaService {
                 await tx.wait();
             }
 
-            // Also ensure Beta has some TKNA/TKNB for baiting/sniping
-            const tknb = new ethers.Contract(CONFIG.L2_HOOK_ADDRESS, [ // Using hook address as proxy for finding tokens if they share same deployer or just hardcode if known
+            // Ensure Beta has some TKNA/TKNB for baiting/sniping
+            const tkna = new ethers.Contract(CONFIG.MOCK_TKNA_ADDRESS, [
+                'function balanceOf(address) view returns (uint256)',
+                'function transfer(address, uint256) returns (bool)'
+            ], alpha.wallet);
+            const tknb = new ethers.Contract(CONFIG.MOCK_TKNB_ADDRESS, [
                 'function balanceOf(address) view returns (uint256)',
                 'function transfer(address, uint256) returns (bool)'
             ], alpha.wallet);
 
-            // Hardcoded Token B address from README/Config
-            const TKNB_ADDR = "0xddee18b54cc13de0e9ec85b7affbb031cc46a7f1";
-            const tokenB = new ethers.Contract(TKNB_ADDR, [
-                'function balanceOf(address) view returns (uint256)',
-                'function transfer(address, uint256) returns (bool)'
-            ], alpha.wallet);
+            const betaTkna = await (tkna as any).balanceOf(beta.address);
+            if (betaTkna < ethers.parseUnits("5", 18)) {
+                console.log(`💰 [FUNDING] BetaSentinel is low on TKNA. AlphaMachine sending 10 TKNA...`);
+                await (await (tkna as any).transfer(beta.address, ethers.parseUnits("10", 18))).wait();
+            }
 
-            const betaTokenB = await (tokenB as any).balanceOf(beta.address);
-            if (betaTokenB < ethers.parseUnits("5", 18)) {
+            const betaTknb = await (tknb as any).balanceOf(beta.address);
+            if (betaTknb < ethers.parseUnits("5", 18)) {
                 console.log(`💰 [FUNDING] BetaSentinel is low on TKNB. AlphaMachine sending 10 TKNB...`);
-                const tx = await (tokenB as any).transfer(beta.address, ethers.parseUnits("10", 18));
-                await tx.wait();
+                await (await (tknb as any).transfer(beta.address, ethers.parseUnits("10", 18))).wait();
             }
         } catch (e) {
             console.error("Funding check failed:", e);
         }
     }
 
-    private startEventPolling() {
-        console.log(`📡 Event Polling Started from block ${this.lastProcessedBlock}`);
-        setInterval(async () => {
-            try {
-                const latestBlock = await this.provider.getBlockNumber();
-                if (latestBlock <= this.lastProcessedBlock) return;
-
-                const fromBlock = this.lastProcessedBlock + 1;
-                const toBlock = latestBlock;
-
-                // 1. Check for new orders
-                const postedLogs = await this.arenaHook.queryFilter(
-                    (this.arenaHook.filters as any).OrderPosted(),
-                    fromBlock,
-                    toBlock
-                );
-
-                for (const log of postedLogs) {
-                    try {
-                        if ('args' in log && log.args) {
-                            const [orderId, maker, isHuman] = log.args;
-                            const id = Number(orderId);
-                            
-                            if (!this.activeOrders.has(id)) {
-                                this.activeOrders.add(id);
-                                const bot = this.botService.getBotByAddress(maker);
-                                const name = bot ? bot.name : (isHuman ? "Human" : "Robot");
-                                const role = bot ? "[TACTICIAN]" : "[USER]";
-                                console.log(`🆕 ${role} ${name} Posted Order #${id}`);
-                                this.maybeSnipe(id, maker);
-                            }
-                        }
-                    } catch (err) {
-                        console.error("Error processing OrderPosted log:", err);
-                    }
-                }
-
-                // 2. Check for filled orders
-                const filledLogs = await this.arenaHook.queryFilter(
-                    (this.arenaHook.filters as any).OrderFilled(),
-                    fromBlock,
-                    toBlock
-                );
-
-                for (const log of filledLogs) {
-                    if ('args' in log && log.args) {
-                        const [orderId, taker, byAi] = log.args;
-                        const id = Number(orderId);
-                        this.activeOrders.delete(id);
-                        const bot = this.botService.getBotByAddress(taker);
-                        const name = bot ? bot.name : "Unknown";
-                        const role = byAi ? "[SNIPER]" : "[USER]";
-                        console.log(`✅ Clash Resolved! Order #${id} captured by ${role} ${name}`);
-                    }
-                }
-
-                this.lastProcessedBlock = toBlock;
-
-            } catch (e) {
-                // Filter Errors are common on public RPCs, we just log and wait for next interval
-                if (e instanceof Error && e.message.includes('filter not found')) {
-                    // Silently ignore or minimal log, the next queryFilter will create a new filter
-                    return;
-                }
-                console.error("Event polling error:", e);
-            }
-        }, 8000); // 8 second polling interval
-    }
 
     private async maybeSnipe(orderId: number, makerAddress: string) {
-        // Simulate L1 signal latency
         setTimeout(async () => {
             try {
-                if (!this.arenaHook) return;
-                // 1. Fetch Order Details (Using safely named access for Ethers v6 Result objects)
                 const res = await (this.arenaHook as any).orders(orderId);
-                if (!res || !res.active) return; 
+                if (!res || !res.active) return;
 
-                const maker = res.maker;
-                const sellToken0 = res.sellToken0; 
                 const amountIn = Number(res.amountIn) / 1e18;
                 const minAmountOut = Number(res.minAmountOut) / 1e18;
                 const expiry = Number(res.expiry);
-                const currentPrice = this.marketState.ethPrice;
+                const sellToken0 = res.sellToken0;
 
-                // 🛡️ DATA INTEGRITY GUARD: Skip if any critical fields are invalid or NaN
-                if (!maker || typeof sellToken0 !== 'boolean' || 
-                    Number.isNaN(amountIn) || Number.isNaN(minAmountOut) || 
-                    currentPrice === undefined || Number.isNaN(currentPrice)) {
-                    console.error(`🚨 [DATA GUARD] Invalid Order Data for #${orderId}. Skipping.`);
+                const profit = this.strategyService.calculateProfit(
+                    amountIn,
+                    minAmountOut,
+                    sellToken0,
+                    this.marketState.ethPrice
+                );
+
+                if (!this.strategyService.isSafeToTrade(profit)) {
+                    console.log(`📉 [GUARD] Order #${orderId} analysis: Unprofitable ($${profit.toFixed(4)}) or unsafe.`);
                     return;
                 }
 
-                if (Date.now() / 1000 > expiry) {
-                    console.log(`📉 [GUARD] Skipping Order #${orderId}: Order has expired. (Reserved for Refund)`);
-                    return;
-                }
-                
-                console.log(`🔍 [DIAGNOSTIC] Order #${orderId} | maker=${maker} | sellToken0=${sellToken0} | In=${amountIn.toFixed(4)} | Out=${minAmountOut.toFixed(4)}`);
+                if (Date.now() / 1000 > expiry) return;
 
-                // 2. Symmetric Profit Calculation
-                let potentialProfit = 0;
-                if (sellToken0) {
-                    // Maker sells TKNA (Asset), Sniper buys Asset
-                    potentialProfit = (amountIn * currentPrice) - minAmountOut;
-                } else {
-                    // Maker sells TKNB (Stable), Sniper sells Asset
-                    potentialProfit = amountIn - (minAmountOut * currentPrice);
-                }
+                const sniper = this.strategyService.selectSniper(makerAddress, this.botService.getAllBots());
+                if (!sniper) return;
 
-                if (Number.isNaN(potentialProfit)) {
-                    console.error(`🚨 [PROFIT GUARD] Profit calculation resulting in NaN for #${orderId}. KILLING TRADE.`);
-                    return;
-                }
+                console.log(`🎯 ${sniper.name} Sniping Order #${orderId} (Profit: $${profit.toFixed(2)})`);
 
-                console.log(`🧐 [ANALYSIS] Order #${orderId} | Profit: $${potentialProfit.toFixed(4)} | Current Price: $${currentPrice}`);
-
-                // 🛡️ BULLETPROOF NUCLEAR PROTECTION: Block any trade with a loss or negligible gain
-                const MIN_GAIN_REQUIRED = 0.01; // Must make at least $0.01 profit
-
-                if (potentialProfit < -0.01) {
-                    console.error(`🚨 [NUCLEAR GUARD] Critical Loss Detected! Profit: $${potentialProfit.toFixed(4)}. KILLING TRADE.`);
-                    return;
-                }
-
-                if (potentialProfit < MIN_GAIN_REQUIRED) {
-                    console.log(`📉 [GUARD] Skipping Order #${orderId}: Unprofitable or negligible gain ($${potentialProfit.toFixed(4)})`);
-                    return;
-                }
-
-                // 3. Selection Logic (Per User Request)
-                const allBots = this.botService.getAllBots();
-                const alpha = allBots.find(b => b.id === 1);
-                const beta = allBots.find(b => b.id === 2);
-                
-                let sniper: BotProfile | undefined;
-                const makerIsAlpha = makerAddress.toLowerCase() === alpha?.address.toLowerCase();
-                const makerIsBeta = makerAddress.toLowerCase() === beta?.address.toLowerCase();
-
-                if (makerIsAlpha) {
-                    // Alpha is maker -> Beta is assigned sniper
-                    sniper = beta;
-                } else if (makerIsBeta) {
-                    // Beta is maker -> Alpha is assigned sniper
-                    sniper = alpha;
-                } else {
-                    // Non-bot maker -> Picking random sniper bot
-                    const options = [alpha, beta].filter(b => b !== undefined) as BotProfile[];
-                    sniper = options[Math.floor(Math.random() * options.length)];
-                }
-
-                if (!sniper) {
-                    console.log(`🤷 No sniper selected for Order #${orderId}`);
-                    return;
-                }
-
-                // NUCLEAR PROTECTION: Even without the Alpha block, never snipe yourself
-                if (sniper.address.toLowerCase() === makerAddress.toLowerCase()) {
-                    console.log(`🛡️  [GUARD] Skipping Order #${orderId}: Self-snipe prevention (${sniper.name} is maker).`);
-                    return;
-                }
-
-                console.log(`🎯 ${sniper.name} Acquired Target: Order #${orderId}. Predicted Gain: +$${potentialProfit.toFixed(2)}. Sniping...`);
-
-                // 4. Ensure Sniper has approved the Hook to spend their tokens
+                // Check and Approve if needed
                 const tokenToPay = sellToken0 ? res.currency1 : res.currency0;
                 const erc20 = new ethers.Contract(tokenToPay, [
-                    'function approve(address spender, uint256 amount) public returns (bool)',
-                    'function allowance(address owner, address spender) public view returns (uint256)'
+                    'function approve(address, uint256) public returns (bool)',
+                    'function allowance(address, address) public view returns (uint256)'
                 ], sniper.wallet);
 
-                const hookAddress = await (this.arenaHook as any).getAddress();
-                const allowance = await (erc20 as any).allowance(sniper.address, hookAddress);
-                const needed = BigInt(res.minAmountOut);
-
-                if (allowance < needed) {
-                    console.log(`   [Action] Approving Hook for ${sniper.name} (${tokenToPay})...`);
-                    const approveTx = await (erc20 as any).approve(hookAddress, ethers.MaxUint256);
-                    await approveTx.wait();
+                const hookAddr = this.arenaHook.target as string;
+                const allowance = await (erc20 as any).allowance(sniper.address, hookAddr);
+                if (allowance < BigInt(res.minAmountOut)) {
+                    await (erc20 as any).approve(hookAddr, ethers.MaxUint256);
                 }
 
-                // 5. Relayer Execution
-                // The ArenaHook strictly requires the 'sentinel' (Alpha) to call triggerOrder.
-                const alphaBot = this.botService.getBot(1);
-                if (!alphaBot) return;
+                // Relayer Execution via TxManager
+                const alpha = this.botService.getBot(1);
+                if (!alpha) return;
 
-                const hookWithRelayer = this.arenaHook.connect(alphaBot.wallet) as ethers.Contract;
+                const txData = this.arenaHook.interface.encodeFunctionData('triggerOrder', [
+                    orderId,
+                    sniper.id,
+                    sniper.address
+                ]);
 
-                // triggerOrder(orderId, agentId, beneficiary)
-                const tx = await (hookWithRelayer as any).triggerOrder(orderId, sniper.id, sniper.address);
-                console.log(`🔫 [SNIPER] ${sniper.name} (via Alpha Relayer) CRITICAL STRIKE! Tx: ${tx.hash}`);
-                console.log(`🏆 Reputation Updated for ${sniper.name} (AgentID: ${sniper.id})`);
+                const tx = await this.txManager.sendTransaction(sniper.wallet, {
+                    to: hookAddr,
+                    data: txData
+                });
+
+                console.log(`🔫 [SNIPER] STRIKE! Tx: ${tx.hash}`);
                 await tx.wait();
-                console.log(`✅ [SNIPER] ${sniper.name} successfully filled Order #${orderId}`);
             } catch (e: any) {
-                console.log(`❌ Snipe sequence failed for Order #${orderId}: ${e.message}`);
-                console.error(e);
+                console.error(`❌ Snipe failed for #${orderId}:`, e.message);
             }
-        }, 8000); // 8 second simulated latency for L1 signal
+        }, 8000);
     }
 
-    private startBaitLoop() {
-        // AlphaMachine (Bot #1) posts a bait order every 60 seconds to keep the arena alive
-        setInterval(async () => {
-            const bots = this.botService.getAllBots();
-            const αBot = bots[0];
-            const βBot = bots[1];
-            
-            if (!αBot || !βBot) return;
 
-            // Alternating trap logic
-            const maker = Math.random() > 0.5 ? αBot : βBot;
-
-            console.log(`🪤  ${maker.name} (The Tactician) is setting a trap...`);
-            try {
-                // Note: Simplified logic for demo intent
-                console.log(`   [Action] ${maker.name} posting P2P Bait Order.`);
-            } catch (e) {
-                console.error("Bait-loop failed:", e);
-            }
-        }, 60000);
-    }
 }

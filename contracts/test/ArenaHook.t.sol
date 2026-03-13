@@ -139,12 +139,12 @@ contract ArenaHookTest is Test {
         // Checks
         (
             address maker,
+            uint64 expiry,
             bool sellToken0,
+            bool active,
+            bool isHuman,
             uint128 aIn,
             uint128 mOut,
-            ,
-            bool active,
-            ,
             ,
             ,
 
@@ -192,7 +192,7 @@ contract ArenaHookTest is Test {
         assertEq(token0.balanceOf(bob), amountIn);
 
         // Order inactive
-        (, , , , , bool active, , , , ) = hook.orders(orderId);
+        (, , , bool active, , , , , , ) = hook.orders(orderId);
         assertFalse(active);
     }
 
@@ -211,7 +211,7 @@ contract ArenaHookTest is Test {
         assertEq(token0.balanceOf(alice), amountIn);
 
         // Order inactive
-        (, , , , , bool active, , , , ) = hook.orders(orderId);
+        (, , , bool active, , , , , , ) = hook.orders(orderId);
         assertFalse(active);
     }
 

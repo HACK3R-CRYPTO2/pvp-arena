@@ -73,12 +73,12 @@ export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBar
       <div className="flex items-center gap-6 overflow-hidden">
          {/* Trades Metric */}
         <div className="flex flex-col group transition-all">
-          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">Volume</span>
+          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">Trades</span>
           <div className="flex items-baseline gap-1">
              <span className="text-sm font-mono font-bold text-foreground">
                {Math.round(stats.totalTrades).toLocaleString()}
              </span>
-             <span className="text-[10px] text-muted-foreground/60">TRDS</span>
+             <span className="text-[10px] text-muted-foreground/60">OPS</span>
           </div>
         </div>
 
@@ -89,7 +89,7 @@ export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBar
           <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">Reactive</span>
           <div className="flex items-baseline gap-1">
              <span className="text-sm font-mono font-bold text-foreground">{stats.reactiveExecs}</span>
-             <span className="text-[10px] text-muted-foreground/60">SWPS</span>
+             <span className="text-[10px] text-muted-foreground/60">SNPS</span>
           </div>
         </div>
 
@@ -97,11 +97,11 @@ export function StatsBar({ viewMode, botAddress, variant = 'default' }: StatsBar
 
         {/* Value Metric */}
         <div className="flex flex-col group transition-all">
-          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">{showPnl ? 'PNL' : 'TOTAL'}</span>
+          <span className="text-[9px] font-cyber text-muted-foreground/50 tracking-widest uppercase">{showPnl ? 'PNL' : 'Volume'}</span>
           <div className="flex items-baseline gap-1">
              {showPnl ? (
                 <span className={`text-sm font-mono font-bold ${pnlPositive ? 'text-neon-green' : 'text-red-400'}`}>
-                  {pnlPositive ? '+' : ''}{stats.totalPnl!.toLocaleString()}
+                   {pnlPositive ? '+' : ''}${Math.round(stats.totalPnl!).toLocaleString()}
                 </span>
              ) : (
                 <span className="text-sm font-mono font-bold text-foreground">

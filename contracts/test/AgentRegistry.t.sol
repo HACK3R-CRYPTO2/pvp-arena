@@ -100,7 +100,7 @@ contract AgentRegistryTest is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.startPrank(alice);
-        vm.expectRevert("Invalid signature");
+        vm.expectRevert(AgentRegistry.InvalidSignature.selector);
         registry.setAgentWallet(agentId, newWallet, deadline, signature);
         vm.stopPrank();
     }

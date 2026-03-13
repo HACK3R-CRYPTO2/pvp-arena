@@ -183,9 +183,15 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                     {(hash || isConfirmed || writeError) && (
                         <div className="pt-2 border-t border-white/5">
                             {isConfirmed ? (
-                                <p className="text-[8px] text-neon-green font-bold uppercase tracking-widest text-center animate-pulse">
-                                    ⚔️ LOGGED: Target neutralized
-                                </p>
+                                lastTxType === 'order' ? (
+                                    <p className="text-[8px] text-neon-green font-bold uppercase tracking-widest text-center animate-pulse">
+                                        ⚔️ LOGGED: Target neutralized
+                                    </p>
+                                ) : (
+                                    <p className="text-[8px] text-neon-cyan font-bold uppercase tracking-widest text-center animate-pulse">
+                                        ✅ Authorization confirmed
+                                    </p>
+                                )
                             ) : writeError ? (
                                 <p className="text-[8px] text-red-400 font-mono text-center wrap-break-word">
                                     ERR: {writeError.message.slice(0, 40)}...
@@ -297,9 +303,14 @@ export function CreateOrderForm({ variant = 'default' }: CreateOrderFormProps) {
                                         TX: <a href={`https://unichain-sepolia.blockscout.com/tx/${hash}`} target="_blank" className="text-neon-cyan underline">{hash.slice(0, 10)}...</a>
                                     </span>
                                 )}
-                                {isConfirmed && (
+                                {isConfirmed && lastTxType === 'order' && (
                                     <span className="text-[10px] text-neon-green font-bold uppercase tracking-widest animate-pulse">
                                         ⚔️ Target Neutralized
+                                    </span>
+                                )}
+                                {isConfirmed && lastTxType === 'approve' && (
+                                    <span className="text-[10px] text-neon-cyan font-bold uppercase tracking-widest animate-pulse">
+                                        ✅ Authorization Ready
                                     </span>
                                 )}
                             </div>

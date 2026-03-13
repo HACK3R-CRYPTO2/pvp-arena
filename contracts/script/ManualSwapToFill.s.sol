@@ -52,7 +52,7 @@ contract ManualSwapToFill is Script {
 
         IPoolManager(poolManager).swap(
             key,
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -int256(swapAmount), // Exact Input
                 sqrtPriceLimitX96: 4295128739 // Any limit for now
