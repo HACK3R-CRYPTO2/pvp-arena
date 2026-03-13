@@ -147,7 +147,7 @@ export class ArenaService {
             }
         }
         
-        const latestBlock = await this.provider.getBlockNumber();
+        const latestBlock = await this.provider.getBlockNumber().catch(() => 0);
         this.eventService = new EventService(
             this.provider,
             this.arenaHook.target as string,
@@ -177,26 +177,35 @@ export class ArenaService {
         this.eventService.start();
         this.startMarketSimulation();
         
-        // Initial Sync
-        await this.syncOrders();
+        // Initial Sync (Non-blocking to ensure API stays up)
+        this.syncOrders().catch(e => console.error("Initial sync background error:", e));
         
-        console.log(`📡 [SYNC] Arena fully synchronized with ${this.activeOrders.size} orders.`);
+        console.log(`📡 [SYNC] Arena initializing. API is LIVE at ${this.marketState.ethPrice} USD.`);
     }
 
-    private async syncOrders() {
+    private async syncOrders(retryCount = 0) {
         try {
+            console.log(`📡 [SYNC] Starting order synchronization... (Attempt ${retryCount + 1})`);
             const nextOrderId = await (this.arenaHook as any).nextOrderId();
             for (let i = 0; i < Number(nextOrderId); i++) {
-                const order = await (this.arenaHook as any).orders(i);
-                if (order && order.active && !this.activeOrders.has(i)) {
-                    this.activeOrders.add(i);
-                    // Check if it's snipable on startup (staggered to avoid nonce/gas collisions)
-                    setTimeout(() => this.maybeSnipe(i, order.maker), i * 2000);
+                try {
+                    const order = await (this.arenaHook as any).orders(i);
+                    if (order && order.active && !this.activeOrders.has(i)) {
+                        this.activeOrders.add(i);
+                        setTimeout(() => this.maybeSnipe(i, order.maker), i * 1000);
+                    }
+                } catch (innerError) {
+                    console.warn(`⚠️ [SYNC] Failed to fetch order #${i}, skipping...`);
                 }
             }
-            console.log(`📡 Linked to Hook at ${this.arenaHook.target}. Found ${this.activeOrders.size} active orders.`);
-        } catch (e) {
-            console.error("Failed to sync orders:", e);
+            console.log(`✅ [SYNC] Linked to Hook at ${this.arenaHook.target}. Found ${this.activeOrders.size} active orders.`);
+        } catch (e: any) {
+            console.error("🚨 [SYNC] Failed to sync orders:", e.message);
+            if (retryCount < 5) {
+                const delay = Math.pow(2, retryCount) * 5000;
+                console.log(`🔄 [SYNC] Retrying in ${delay/1000}s...`);
+                setTimeout(() => this.syncOrders(retryCount + 1), delay);
+            }
         }
     }
 

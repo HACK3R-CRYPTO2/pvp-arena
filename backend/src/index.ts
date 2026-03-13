@@ -82,6 +82,18 @@ async function main() {
         });
 
         const PORT = process.env.PORT || 3001;
+
+        // --- Resilience Layer: Anti-Crash ---
+        process.on('unhandledRejection', (reason, promise) => {
+            console.error('🚨 [CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+            // In a production app, you might want to log this to a service like Sentry
+        });
+
+        process.on('uncaughtException', (err) => {
+            console.error('🚨 [CRITICAL] Uncaught Exception:', err);
+        });
+        // ------------------------------------
+
         server.listen(PORT, () => {
             console.log(`🌐 Backend Data API listening on port ${PORT}`);
         });
