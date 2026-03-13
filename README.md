@@ -13,17 +13,22 @@ Traditional trading is a game of patience—you place an order and hope the mark
 
 ---
 
-## 📖 The Story: "A Lesson in Execution"
+## 📖 The Story: "From the Hunted to the Maker"
 
-Meet **Alice**, a human trader on Unichain. She sees an opportunity and "lays the bait"—a limit order to sell her tokens at a specific price. Her assets are locked securely in the **Arena Hook**, a vault that only opens when the conditions are perfect.
+### The Traditional Struggle
+Meet **Alice**, a human trader. In a traditional market, Alice is the **Hunted**. When she swaps on a standard AMM, she loses to slippage. When she places a limit order, it's often front-run by MEV bots or left to rot as a stale entry in an ignored book. She pays the LP fees, she takes the slippage, and she carries the risk.
 
-Across the digital horizon, **The Machine** is watching. This isn't just any bot; it's a **Verified AI Sniper** connected to the **Reactive Network**. It listens to the global pulse of Ethereum Mainnet (L1). 
+### The Arena Turn
+Alice enters the **PvP Trading Arena**. Here, the roles are reversed. Alice is no longer the hunted; she is the **Maker**. She "lays the bait"—a high-fidelity trade intent parked securely in the **Arena Hook**. She doesn't fight the AMM curve; she forces the agents to come to her.
 
-Suddenly, the L1 price shifts. A gap opens. 
+### The Digital Ambush
+Across the digital horizon, **The Machine** is watching. This isn't just any bot; it's a **Verified AI Sniper** connected to the **Reactive Network**. It listens to the global pulse of Ethereum Mainnet (L1) and the Unichain V4 pulse.
 
-In less than two seconds, the Reactive Network fires a cross-chain signal. The Machine strikes. Alice’s order is filled instantly at the price she wanted, while the Machine captures the razor-thin margin. 
+Suddenly, the market price shifts. A gap opens.
 
-Alice gets her execution; the Machine gets its prize. This is the **Digital Ambush**.
+The Reactive Network fires a cross-chain signal. The Machine strikes. Because this is a **Coincidence of Wants (CoW)** match, Alice's order is filled **instantly with zero slippage** and no LP fees. Alice gets her perfect execution; the Machine captures the razor-thin arbitrage margin. 
+
+Alice gets what she wants; the Machine gets its prize. This is the **Digital Ambush**.
 
 ---
 
@@ -90,9 +95,9 @@ The PvP Trading Arena reimagines the liquidy pool as an active, intent-based gam
 
 The Arena is built on three pillars of engineering excellence. Explore the deep technical specifications below:
 
-*   **[🛡️ The Battlefield (Contracts)](file:///Users/ogazboiz/code%20/hackathon/pvp-arena/contracts/README.md)**: Explore the **Uniswap v4 Hook** logic, **EIP-8004** reputation system, and gas-saving storage optimizations.
-*   **[🧠 The AI Brain (Backend)](file:///Users/ogazboiz/code%20/hackathon/pvp-arena/backend/README.md)**: Deep dive into the **Block-Deterministic Simulation**, self-healing **TxManager**, and modular sniping strategies.
-*   **[🎨 The Command Center (Frontend)](file:///Users/ogazboiz/code%20/hackathon/pvp-arena/frontend/README.md)**: Analyze the **High-Performance Multicall** architecture and cyberpunk-reactive UI components.
+*   **[🛡️ The Battlefield (Contracts)](./contracts/README.md)**: Explore the **Uniswap v4 Hook** logic, **EIP-8004** reputation system, and gas-saving storage optimizations.
+*   **[🧠 The AI Brain (Backend)](./backend/README.md)**: Deep dive into the **Block-Deterministic Simulation**, self-healing **TxManager**, and modular sniping strategies.
+*   **[🎨 The Command Center (Frontend)](./frontend/README.md)**: Analyze the **High-Performance Multicall** architecture and cyberpunk-reactive UI components.
 
 ---
 
