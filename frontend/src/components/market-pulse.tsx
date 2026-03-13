@@ -70,7 +70,7 @@ export function MarketPulse({ variant = 'default' }: MarketPulseProps) {
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-cyber tracking-tight text-muted-foreground/60">VOLATILITY</span>
             <span className={`text-sm font-mono font-bold ${isVolatile ? 'text-neon-purple' : 'text-neon-green'}`}>
-              {state.volatility.toFixed(2)}%
+              {(state.volatility ?? 0).toFixed(2)}%
             </span>
           </div>
         </div>
@@ -107,7 +107,7 @@ export function MarketPulse({ variant = 'default' }: MarketPulseProps) {
           </span>
           <div className="flex items-center gap-2">
             <span className={`text-xl font-cyber ${isVolatile ? 'text-neon-purple' : 'text-neon-green'}`}>
-              {state.volatility.toFixed(2)}%
+              {(state.volatility ?? 0).toFixed(2)}%
             </span>
             {isVolatile && (
               <Zap size={16} className="text-neon-purple animate-bounce" />
