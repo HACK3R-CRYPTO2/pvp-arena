@@ -36,12 +36,26 @@ async function main() {
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
         if (req.method === 'OPTIONS') {
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+            res.setHeader('Access-Control-Max-Age', '86400');
             res.writeHead(204);
             res.end();
             return;
         }
 
-        // Health Check & Readiness Check
+        // --- PRODUCTION HEALTH CHECKS ---
+        // 1. Root Check (Required for many cloud health monitors)
+        if (req.url === '/' && req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                status: "live", 
+                message: "PvP Arena Gateway is Online",
+                service: "Backend API v1"
+            }));
+            return;
+        }
+
+        // 2. Status & Market Data
         if (req.url === '/status' && req.method === 'GET') {
             if (!arena) {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
