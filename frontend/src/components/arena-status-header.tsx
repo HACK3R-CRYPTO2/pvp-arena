@@ -23,8 +23,8 @@ export function ArenaStatusHeader() {
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-         <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-         <span className="text-[8px] font-cyber text-neon-cyan/60 uppercase tracking-tighter">Hook Active</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+        <span className="text-[8px] font-cyber text-neon-cyan/60 uppercase tracking-tighter">Syncing</span>
       </div>
     </div>
   )

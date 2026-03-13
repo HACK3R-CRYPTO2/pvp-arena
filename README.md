@@ -63,13 +63,15 @@ The protocol has been upgraded to a production standard with the following techn
 8.  **Frozen Trade History**: Historical trades in the dashbaord are now snapsoted at the block of execution. This "Freezes" the profit and capture values in the Live Feed, providing a precise, unshakeable audit trail.
 9.  **Self-Healing Nonce Management**: Integrated an automatic reset for wallet nonces upon transaction failure, preventing bots from getting stuck during high-frequency network congestion.
 
-1.  **Terminal-Style Dashboard Overhaul**: Transformed the frontend into a high-density, cyberpunk-themed command center. Features include live price tickers, a dynamic "Mission Briefing" page, and a unified Battle Stats header.
-2.  **Real-Time Reactivity Fix**: Added a `useEffect` synchronization layer to the `CreateOrderForm`. The UI now automatically detects and reflects token approval confirmations without requiring a page refresh.
-3.  **Dynamic Volume Calculation**: Replaced hardcoded stats with a live blockchain-derived volume tracker. It computes the "True USD" value of every trade based on the simulated ETH/USDC exchange rate.
-4.  **Bot Selection Logic**: Optimized the AI Engine for fair multi-agent participation. Both **AlphaMachine** and **BetaSentinel** now sign and execute their own transactions via independent sentinel authorized wallets.
-5.  **Race Condition Guard (L2)**: Implemented a smart contract level `Expiry Guard` in `ArenaHook.sol`. This prevents AI Agents from filling orders that have reached their deadline.
-6.  **Nuclear Profit Guard**: The AI Engine's backend now enforces a strict **Negative Profit Filter**. Bots will automatically ignore orders that result in a loss.
-7.  **Manual Control Mode**: Disabled autonomous "Bait Orders" to give users full control over the arena's battlefield. Bots only react to human intentions.
+### Dashboard & Engine Enhancements
+ 
+10. **Terminal-Style Dashboard Overhaul**: Transformed the frontend into a high-density, cyberpunk-themed command center. Features include live price tickers, a dynamic "Mission Briefing" page, and a unified Battle Stats header.
+11. **Real-Time Reactivity Fix**: Added a `useEffect` synchronization layer to the `CreateOrderForm`. The UI now automatically detects and reflects token approval confirmations without requiring a page refresh.
+12. **Dynamic Volume Calculation**: Replaced hardcoded stats with a live blockchain-derived volume tracker. It computes the "True USD" value of every trade based on the simulated ETH/USDC exchange rate.
+13. **Bot Selection Logic**: Optimized the AI Engine for fair multi-agent participation. Both **AlphaMachine** and **BetaSentinel** now sign and execute their own transactions via independent sentinel authorized wallets.
+14. **Race Condition Guard (L2)**: Implemented a smart contract level `Expiry Guard` in `ArenaHook.sol`. This prevents AI Agents from filling orders that have reached their deadline.
+15. **Nuclear Profit Guard**: The AI Engine's backend now enforces a strict **Negative Profit Filter**. Bots will automatically ignore orders that result in a loss.
+16. **Manual Control Mode**: Disabled autonomous "Bait Orders" to give users full control over the arena's battlefield. Bots only react to human intentions.
 
 ## 🛠️ Stack
 *   **Layer 1**: Ethereum Sepolia (Price Reference)
