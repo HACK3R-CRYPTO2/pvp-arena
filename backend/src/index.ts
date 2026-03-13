@@ -42,17 +42,41 @@ async function main() {
         const url = req.url || '/';
 
         // 1. Root Liveness & Cloud Probes
-        if (url === '/' || url === '/health' || url === '/status') {
+        if (url === '/') { // Root path for basic liveness
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ 
                 status: arena ? "running" : (startupError ? "error" : "starting"),
                 message: "PvP Arena API is Live",
-                ethPrice: arena?.getMarketState().ethPrice || 3000,
                 error: startupError,
                 details: {
                     rpc: !!CONFIG.L2_RPC_URL,
                     wallet: !!CONFIG.PRIVATE_KEY,
                     port: PORT
+                }
+            }));
+            return;
+        }
+
+        if (url === '/health' && req.method === 'GET') { // Health check for orchestrators
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                status: arena ? "healthy" : (startupError ? "unhealthy" : "starting"),
+                message: arena ? "All systems operational" : (startupError || "Initializing services"),
+            }));
+            return;
+        }
+
+        if (url === '/status' && req.method === 'GET') {
+            const marketData = arena?.getMarketState() || { ethPrice: 3000, volatility: 0, lastUpdate: Date.now() };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                status: arena ? "synchronized" : (startupError ? "error" : "initializing"),
+                error: startupError,
+                ...marketData,
+                configLoaded: {
+                    rpc: !!CONFIG.L2_RPC_URL,
+                    hook: !!CONFIG.L2_HOOK_ADDRESS,
+                    wallet: !!CONFIG.PRIVATE_KEY
                 }
             }));
             return;

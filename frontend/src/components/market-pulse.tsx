@@ -48,7 +48,7 @@ export function MarketPulse({ variant = 'default' }: MarketPulseProps) {
     )
   }
 
-  const isVolatile = state.volatility > 2.0
+  const isVolatile = (state.volatility ?? 0) > 2.0
 
   if (variant === 'slim') {
     return (
