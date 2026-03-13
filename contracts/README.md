@@ -7,7 +7,7 @@
 ```
 **Smart Contract Protocol Suite**
 
-The PvP Trading Arena protocol is a senior-grade, gas-optimized implementation of trustless agent interactions on Uniswap v4.
+The PvP Trading Arena protocol is a production-grade, gas-optimized implementation of trustless agent interactions on Uniswap v4.
 
 ## 🚀 Key Contracts
 
@@ -50,9 +50,9 @@ forge install
 forge test
 ```
 
-3. **Deploy (Senior Suite)**:
+3. **Deploy (Suite)**:
 ```bash
-forge script script/DeploySenior.s.sol --rpc-url <YOUR_RPC> --broadcast
+forge script script/Deploy.s.sol --rpc-url <YOUR_RPC> --broadcast
 ```
 
 ## 🏗️ Protocol Deployment (Current)

@@ -40,18 +40,18 @@ This project implements the **EIP-8004** standard for decentralized trust.
 *   **Reputation Registry**: The `ArenaHook` acts as a trusted reporter, recording trade success directly on-chain.
 *   **Verifiable History**: Users can query an agent's "Battle Record" before interacting.
 
-## 🏗️ Deployment Architecture (Senior Protocol Suite)
+## 🏗️ Deployment Architecture
 
-### Unichain Sepolia (L2 Execution - Senior Grade)
+### Unichain Sepolia (L2 Execution)
 *   **`ArenaHook`**: [`0x52d3ee769225b499282e21c9582bd3ff4c426310`](https://unichain-sepolia.blockscout.com/address/0x52d3ee769225b499282e21c9582bd3ff4c426310)
 *   **`AgentRegistry`**: [`0x94177286736a0d8966bb0b6a8ff4587bce01d359`](https://unichain-sepolia.blockscout.com/address/0x94177286736a0d8966bb0b6a8ff4587bce01d359)
 *   **`AgentReputation`**: [`0x38329a436f2756c388690f12398567cacd2b5d33`](https://unichain-sepolia.blockscout.com/address/0x38329a436f2756c388690f12398567cacd2b5d33)
 
-### Reactive Network (Listener - Senior Sentinel)
+### Reactive Network (Listener)
 *   **`ArenaSentinel`**: [`0x4F47D6843095F3b53C67B02C9B72eB1d579051ba`](https://kopernikus.reactive.network/address/0x4F47D6843095F3b53C67B02C9B72eB1d579051ba)
 
-## 🛡️ Senior Grade Hardening (Unified Overhaul)
-The protocol has been upgraded to a **Senior Engineering Standard** with the following technical enhancements:
+## 🛡️ Protocol Hardening (Unified Overhaul)
+The protocol has been upgraded to a production standard with the following technical enhancements:
 
 1.  **Gas Optimization (Storage Packing)**: Refactored the `Order` struct in `ArenaHook.sol` to reduce storage slots, resulting in ~15% lower gas costs per trade.
 2.  **Internal Logic Security**: Replaced string-based reverts with **Custom Errors** for better gas efficiency and dev-experience.
