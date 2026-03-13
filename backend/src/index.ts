@@ -115,9 +115,10 @@ async function main() {
         res.end();
     });
 
-    // 🚀 Bind listener instantly to all interfaces
-    server.listen(PORT, () => {
-        console.log(`🌐 [GATEWAY] Live on port ${PORT}`);
+    // 🚀 Bind listener instantly to all interfaces (CRITICAL for Railway/Cloud)
+    server.listen(Number(PORT), '0.0.0.0', () => {
+        console.log(`🌐 [GATEWAY] Live on 0.0.0.0:${PORT}`);
+        console.log(`📡 [GATEWAY] Probes: / (Root), /status, /health`);
         
         // 🏗️ Background AI Startup Sequence
         (async () => {
