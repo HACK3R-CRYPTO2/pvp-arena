@@ -8,7 +8,7 @@ import {ArenaHook} from "../src/ArenaHook.sol";
 import {AgentRegistry} from "../src/AgentRegistry.sol";
 import {AgentReputation} from "../src/AgentReputation.sol";
 
-contract DeployFinalSenior is Script {
+contract DeployFinal is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -40,7 +40,7 @@ contract DeployFinalSenior is Script {
         reputation.setAuthorizedHook(address(hook), true);
         console.log("Reputation Authorization: ArenaHook linked.");
 
-        console.log("Final Senior Protocol Suite Live.");
+        console.log("Final Protocol Suite Live.");
 
         vm.stopBroadcast();
     }

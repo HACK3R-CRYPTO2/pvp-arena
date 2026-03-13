@@ -5,7 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {ArenaHook} from "../src/ArenaHook.sol";
 
-contract LinkSenior is Script {
+contract Link is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -16,7 +16,7 @@ contract LinkSenior is Script {
 
         // Linking
         ArenaHook(arenaHookAddr).setSentinel(sentinelAddr);
-        console.log("Senior Hook linked to Senior Sentinel.");
+        console.log("Arena Hook linked to Arena Sentinel.");
 
         vm.stopBroadcast();
     }
