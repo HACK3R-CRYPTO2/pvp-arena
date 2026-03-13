@@ -5,16 +5,23 @@ import { BotService } from './services/bots.js';
 import { ArenaService } from './services/arena.js';
 
 async function main() {
+    // --- Resilience Layer: Anti-Crash (Register early) ---
+    process.on('unhandledRejection', (reason, promise) => {
+        console.error('🚨 [CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+
+    process.on('uncaughtException', (err) => {
+        console.error('🚨 [CRITICAL] Uncaught Exception:', err);
+    });
+
     try {
+        const PORT = process.env.PORT || 3001;
         const provider = new ethers.JsonRpcProvider(CONFIG.L2_RPC_URL, undefined, {
             staticNetwork: true,
         });
-        // @ts-ignore - ethers v6 request options
-        provider._getConnection().timeout = 30000;
+
         const botService = new BotService(provider);
         const arena = new ArenaService(provider, botService, CONFIG.L2_HOOK_ADDRESS);
-
-        await arena.start();
 
         // Simple HTTP server to expose market data to frontend
         const server = http.createServer(async (req, res) => {
@@ -35,11 +42,12 @@ async function main() {
                 return;
             }
 
+            // ... (rest of the routing logic remains the same)
             if (req.url?.startsWith('/api/bots/assets/') && req.method === 'GET') {
                 const parts = req.url.split('/');
                 const address = parts[parts.length - 1];
                 if (address) {
-                    const data = await botService.getBotAssets(address);
+                    const data = await botService.getBotAssets(address).catch(() => ({ eth: "0", tokens: [] }));
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify(data));
                     return;
@@ -52,21 +60,18 @@ async function main() {
                 req.on('end', async () => {
                     try {
                         const data = JSON.parse(body);
-
                         if (req.url === '/api/bots/ens/resolve') {
                             const address = await arena.resolveName(data.ensName || '');
                             res.writeHead(200, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ success: !!address, address }));
                             return;
                         }
-
                         if (req.url === '/api/bots/ens/reverse') {
                             const name = await arena.reverseResolve(data.address || '');
                             res.writeHead(200, { 'Content-Type': 'application/json' });
                             res.end(JSON.stringify({ success: !!name, name }));
                             return;
                         }
-
                         res.writeHead(404);
                         res.end();
                     } catch (e) {
@@ -81,25 +86,19 @@ async function main() {
             res.end();
         });
 
-        const PORT = process.env.PORT || 3001;
-
-        // --- Resilience Layer: Anti-Crash ---
-        process.on('unhandledRejection', (reason, promise) => {
-            console.error('🚨 [CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
-            // In a production app, you might want to log this to a service like Sentry
-        });
-
-        process.on('uncaughtException', (err) => {
-            console.error('🚨 [CRITICAL] Uncaught Exception:', err);
-        });
-        // ------------------------------------
-
+        // CRITICAL: Start listening IMMEDIATELY so Railway health checks pass
         server.listen(PORT, () => {
-            console.log(`🌐 Backend Data API listening on port ${PORT}`);
+            console.log(`🌐 [NODE-PRODUCTION] API is ONLINE and listening on port ${PORT}`);
+            console.log(`📡 [NODE-PRODUCTION] Initializing AI Services in background...`);
+            
+            // Start AI services in background - fire and forget to prevent 502
+            arena.start().catch(err => {
+                console.error("🚨 [NODE-PRODUCTION] Background AI Startup Error:", err);
+            });
         });
 
     } catch (error) {
-        console.error("❌ Fatal Error:", error);
+        console.error("❌ Fatal Error during startup:", error);
         process.exit(1);
     }
 }
