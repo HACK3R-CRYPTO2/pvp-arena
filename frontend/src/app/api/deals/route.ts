@@ -21,7 +21,8 @@ export async function GET(request: Request) {
         const registryAbi = (AgentRegistryABI as any).abi || AgentRegistryABI;
 
         // 1. Fetch live price from backend and contract data
-        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const rawUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const baseUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
         const [statusRes, alphaAddr, betaAddr, nextOrderIdRaw] = await Promise.all([
             fetch(`${baseUrl}/status`).then(r => r.json()).catch(() => ({ ethPrice: 3000 })),
             client.readContract({

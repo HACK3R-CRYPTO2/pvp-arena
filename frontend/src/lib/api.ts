@@ -1,8 +1,26 @@
 import axios from 'axios'
 
+// Normalizes URLs to ensure they have a protocol and no trailing slash
+function normalizeUrl(url: string | undefined, defaultLocal: string): string {
+  if (!url) return defaultLocal
+  
+  let normalized = url.trim()
+  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    // If it's a localhost-style string or just a domain
+    if (normalized.includes('localhost') || normalized.includes('127.0.0.1')) {
+      normalized = `http://${normalized}`
+    } else {
+      normalized = `https://${normalized}`
+    }
+  }
+  
+  // Remove trailing slash
+  return normalized.replace(/\/$/, '')
+}
+
 // Get API URL - throws at runtime if not set
 function getApiUrl(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL
+  const url = normalizeUrl(process.env.NEXT_PUBLIC_API_URL, '')
   if (!url) {
     throw new Error('NEXT_PUBLIC_API_URL environment variable is required')
   }
@@ -38,7 +56,7 @@ let backendInstance: ReturnType<typeof axios.create> | null = null
 
 export function getBackendApi() {
   if (!backendInstance) {
-    const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+    const url = normalizeUrl(process.env.NEXT_PUBLIC_BACKEND_URL, 'http://localhost:3001')
     backendInstance = axios.create({
       baseURL: url,
       timeout: 30000,

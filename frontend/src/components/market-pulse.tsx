@@ -18,12 +18,13 @@ export function MarketPulse({ variant = 'default' }: MarketPulseProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchStatus() {
+    const fetchStatus = async () => {
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
-        const res = await fetch(`${baseUrl}/status`)
-        if (res.ok) {
-          const data = await res.json()
+        const rawUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const baseUrl = rawUrl.startsWith('http') ? rawUrl : (`https://${rawUrl}`).replace(/\/$/, '')
+        const response = await fetch(`${baseUrl}/status`)
+        if (response.ok) {
+          const data = await response.json()
           setState(data)
         }
       } catch (error) {
