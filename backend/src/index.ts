@@ -81,9 +81,9 @@ async function main() {
             res.end();
         });
 
-        const PORT = 3001;
+        const PORT = process.env.PORT || 3001;
         server.listen(PORT, () => {
-            console.log(`🌐 Backend Data API listening on http://localhost:${PORT}/status`);
+            console.log(`🌐 Backend Data API listening on port ${PORT}`);
         });
 
     } catch (error) {

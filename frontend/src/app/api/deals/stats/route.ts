@@ -17,8 +17,9 @@ export async function GET(request: Request) {
         const hookAddress = P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`;
 
         // Fetch live price from backend status
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
         const [statusRes, nextOrderIdRaw] = await Promise.all([
-            fetch('http://localhost:3001/status').then(r => r.json()).catch(() => ({ ethPrice: 3000 })),
+            fetch(`${baseUrl}/status`).then(r => r.json()).catch(() => ({ ethPrice: 3000 })),
             client.readContract({
                 address: hookAddress,
                 abi: (ArenaHookABI as any).abi || ArenaHookABI,

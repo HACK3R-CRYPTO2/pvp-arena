@@ -20,7 +20,8 @@ export function MarketPulse({ variant = 'default' }: MarketPulseProps) {
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const res = await fetch('http://localhost:3001/status')
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+        const res = await fetch(`${baseUrl}/status`)
         if (res.ok) {
           const data = await res.json()
           setState(data)
