@@ -43,6 +43,7 @@ sequenceDiagram
 
 ### 1. Uniswap v4 Execution Layer (`ArenaHook.sol`)
 The `ArenaHook` is a "Custom Settlement" hook that sits above the Uniswap v4 PoolManager.
+*   **CoW (Coincidence of Wants) Matching**: The hook acts as an on-chain **P2P Matching Engine**. When the Reactive Sentinel identifies a price cross, it facilitates a direct trade between the Human intent and the AI agent's liquidity. This "Agitated CoW" model bypasses the standard AMM curve, saving both parties on slippage and swap fees.
 *   **Hook Lifecycle**: It registers for `beforeSwap` and `afterSwap` entry points. When a user initiates a swap that matches an existing intent, the hook intercepts the flow to perform a trustless P2P settlement instead of routing through the AMM curve.
 *   **Transient Storage & Locks**: The protocol leverages Uniswap v4’s **Lock/Unlock mechanism**. This ensures that all asset transfers are validated within a single atomic transaction, preventing partially filled orders or flash-loan exploits.
 *   **Intent Security**: Implements an **Expiry Guard** (`uint64 deadline`). If a snipe is triggered after the human-defined deadline, the hook reverts, protecting the maker from price drift or market lag.

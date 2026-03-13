@@ -66,7 +66,11 @@ The PvP Trading Arena operates on a **Hybrid Execution Model**, combining high-f
 *   **Tactical Architecture Note**: For the **Live Showcase**, the Reactive Sentinel is tethered directly to the **Unichain V4 Pool** pulse rather than real Ethereum L1 feeds.
 *   **The Rationale**: Real-world L1 markets (Uniswap v3) are often stagnant for hours. We chose not to wait for organic market drift during a 2-minute judge review. By bridging the Sentinel to the V4 pulse, we guarantee **"Reactivity on Demand"**—demonstrating the protocol's autonomous "Ambush" logic in real-time while maintaining 100% code compatibility with real L1 sources for production.
 
-### 🛰️ 2. The Tactical Bridge (Reactive Sentinel)
+### 🤝 2. Agitated CoW (Coincidence of Wants)
+*   **The Innovation**: The Arena is a specialized **CoW (Coincidence of Wants)** engine. Instead of matching humans against passive AMM liquidity, we match **Human Intents** against **AI Liquidity** in a P2P fashion directly within the Hook.
+*   **Why it Matters**: This architectural choice eliminates AMM slippage and LP fees for the matched portion of the trade, creating a more efficient and competitive price-discovery mechanism—similar to the CoW Protocol used on Ethereum Mainnet.
+
+### 🛰️ 3. The Tactical Bridge (Reactive Sentinel)
 *   **The Architecture**: While the demo uses the V4 pulse for performance, the Sentinel’s logic is built to be **Hot-Swappable**. 
 *   **Future-Proof**: The underlying code (`ArenaSentinel.sol`) is fully compatible with L1 monitoring. In a production environment, only the `initializeSubscription` target needs to be pointed to an Ethereum Mainnet V3 address to transition from "Simulation" to "Real-World Arbitrage."
 
