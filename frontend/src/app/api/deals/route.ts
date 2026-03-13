@@ -152,7 +152,7 @@ export async function GET(request: Request) {
                 // Mark-to-Market Profit Tracking
                 let profit = null;
                 if (isCompleted && !cancelsMap[id]) {
-                    // SENIOR FIX: If completed, use the price at the block of execution (Frozen History)
+                    // PROTOCOL REFINEMENT: If completed, use the price at the block of execution (Frozen History)
                     // If block info is missing (old log), fall back to LIVE_PRICE or ID-seed
                     const fillLog = fillLogs.find(l => Number(l.args.orderId) === id);
                     const executionPrice = fillLog?.blockNumber 
