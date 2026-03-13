@@ -12,39 +12,54 @@ const client = createPublicClient({
 export async function GET() {
     try {
         const hookAddress = P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`;
+        const abi = (ArenaHookABI as any).abi || ArenaHookABI;
 
         // Get total number of orders
         const nextOrderId = await client.readContract({
             address: hookAddress,
-            abi: (ArenaHookABI as any).abi || ArenaHookABI,
+            abi,
             functionName: 'nextOrderId',
         }) as bigint;
 
         const count = Number(nextOrderId);
+        if (count === 0) {
+            return NextResponse.json({ orders: [] });
+        }
 
         // Fetch active orders (limit to last 20 for performance)
-        const startIndex = Math.max(0, count - 20);
+        const limit = 20;
+        const startIndex = Math.max(0, count - limit);
         const orderIds = Array.from({ length: count - startIndex }, (_, i) => BigInt(startIndex + i));
 
-        const orderPromises = orderIds.map(async (id) => {
-            try {
-                const orderData = await client.readContract({
-                    address: hookAddress,
-                    abi: (ArenaHookABI as any).abi || ArenaHookABI,
-                    functionName: 'orders',
-                    args: [id],
-                }) as any;
+        // Use multicall for efficiency
+        const results = await client.multicall({
+            contracts: orderIds.map(id => ({
+                address: hookAddress,
+                abi,
+                functionName: 'orders',
+                args: [id],
+            })),
+        });
 
-                if (!orderData) return null;
+        const orders = results
+            .map((result, index) => {
+                if (result.status === 'failure' || !result.result) return null;
+                
+                const orderData = result.result as any;
+                const id = orderIds[index];
 
-                const active = typeof orderData.active !== 'undefined' ? orderData.active : orderData[5];
+                // New struct layout:
+                // 0: maker, 1: expiry, 2: sellToken0, 3: active, 4: isHuman, 5: amountIn, 6: minAmountOut
+                const active = orderData[3];
                 if (!active) return null;
 
-                const maker = orderData.maker || orderData[0];
-                const sellToken0 = typeof orderData.sellToken0 !== 'undefined' ? orderData.sellToken0 : orderData[1];
-                const amountIn = (orderData.amountIn || orderData[2]).toString();
-                const minAmountOut = (orderData.minAmountOut || orderData[3]).toString();
-                const expiryRaw = orderData.expiry || orderData[4];
+                const maker = orderData[0];
+                const expiryRaw = orderData[1];
+                const sellToken0 = orderData[2];
+                const isHuman = orderData[4];
+                const amountIn = orderData[5].toString();
+                const minAmountOut = orderData[6].toString();
+                
                 const expiry = new Date(Number(expiryRaw) * 1000).toISOString();
                 
                 return {
@@ -55,20 +70,16 @@ export async function GET() {
                     minAmountOut,
                     expiry,
                     active: true,
+                    isHuman,
                     isExpired: Number(expiryRaw) < Math.floor(Date.now() / 1000),
                     sellToken: sellToken0 ? 'TKNA' : 'TKNB',
                     buyToken: sellToken0 ? 'TKNB' : 'TKNA',
                 };
-            } catch (orderError) {
-                console.error(`Skipping order #${id} due to fetch error:`, orderError);
-                return null;
-            }
-        });
+            })
+            .filter((o): o is NonNullable<typeof o> => o !== null)
+            .reverse();
 
-        const results = await Promise.all(orderPromises);
-        const orders = results.filter((o): o is NonNullable<typeof o> => o !== null);
-
-        return NextResponse.json({ orders: orders.reverse() });
+        return NextResponse.json({ orders });
     } catch (error: any) {
         console.error('Failed to fetch orders:', error);
         // Fallback to empty list instead of 500 to keep UI stable

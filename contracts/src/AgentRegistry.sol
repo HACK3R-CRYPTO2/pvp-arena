@@ -24,6 +24,13 @@ contract AgentRegistry is ERC721URIStorage, Ownable {
     // Agent Wallets (agentId => wallet address)
     mapping(uint256 => address) private _agentWallets;
 
+    // Errors
+    error NotAgentOwner();
+    error NotAuthorized();
+    error CannotSetWalletDirectly();
+    error SignatureExpired();
+    error InvalidSignature();
+
     // Events
     event Registered(
         uint256 indexed agentId,
@@ -55,6 +62,12 @@ contract AgentRegistry is ERC721URIStorage, Ownable {
 
     // --- Registration ---
 
+    /**
+     * @notice Registers a new agent with initial metadata
+     * @param agentURI The URI for the agent's metadata
+     * @param metadata Initial metadata entries
+     * @return agentId The newly created agent ID
+     */
     function register(
         string calldata agentURI,
         MetadataEntry[] calldata metadata
@@ -101,29 +114,39 @@ contract AgentRegistry is ERC721URIStorage, Ownable {
 
     // --- URI Management ---
 
+    /**
+     * @notice Updates the metadata URI for an agent
+     * @param agentId The ID of the agent
+     * @param newURI The new URI
+     */
     function setAgentURI(uint256 agentId, string calldata newURI) external {
-        require(ownerOf(agentId) == msg.sender, "Not agent owner");
+        if (ownerOf(agentId) != msg.sender) revert NotAgentOwner();
         _setTokenURI(agentId, newURI);
         emit URIUpdated(agentId, newURI, msg.sender);
     }
 
     // --- Metadata Management ---
 
+    /**
+     * @notice Sets metadata for an agent
+     * @param agentId The ID of the agent
+     * @param metadataKey The key of the metadata
+     * @param metadataValue The value of the metadata
+     */
     function setMetadata(
         uint256 agentId,
         string calldata metadataKey,
         bytes calldata metadataValue
     ) external {
-        require(
-            ownerOf(agentId) == msg.sender ||
-                getApproved(agentId) == msg.sender ||
-                isApprovedForAll(ownerOf(agentId), msg.sender),
-            "Not authorized"
-        );
-        require(
-            keccak256(bytes(metadataKey)) != keccak256(bytes("agentWallet")),
-            "Cannot set agentWallet directly"
-        );
+        if (
+            ownerOf(agentId) != msg.sender &&
+            getApproved(agentId) != msg.sender &&
+            !isApprovedForAll(ownerOf(agentId), msg.sender)
+        ) revert NotAuthorized();
+
+        if (keccak256(bytes(metadataKey)) == keccak256(bytes("agentWallet"))) {
+            revert CannotSetWalletDirectly();
+        }
 
         _setMetadata(agentId, metadataKey, metadataValue);
     }
@@ -137,6 +160,12 @@ contract AgentRegistry is ERC721URIStorage, Ownable {
         emit MetadataSet(agentId, metadataKey, metadataKey, metadataValue);
     }
 
+    /**
+     * @notice Retrieves metadata for an agent
+     * @param agentId The ID of the agent
+     * @param metadataKey The key of the metadata
+     * @return The metadata value
+     */
     function getMetadata(
         uint256 agentId,
         string calldata metadataKey
@@ -146,20 +175,21 @@ contract AgentRegistry is ERC721URIStorage, Ownable {
 
     // --- Wallet Management ---
 
+    /**
+     * @notice Securely sets the agent's wallet address using a signature from the new wallet
+     * @param agentId The ID of the agent
+     * @param newWallet The new wallet address
+     * @param deadline Signature expiration timestamp
+     * @param signature Signature from the new wallet
+     */
     function setAgentWallet(
         uint256 agentId,
         address newWallet,
         uint256 deadline,
         bytes calldata signature
     ) external {
-        require(ownerOf(agentId) == msg.sender, "Not agent owner");
-        require(block.timestamp <= deadline, "Signature expired");
-
-        // Verify signature from newWallet to prove control
-        // Message: keccak256(abi.encodePacked(agentId, newWallet, deadline, chainId, address(this)))
-        // This is a simplified check. EIP-8004 specifies EIP-712.
-        // For Hackathon, we'll implement a basic check or skip if complex EIP-712 setup is too much code.
-        // Let's implement basic EIP-712-like hash.
+        if (ownerOf(agentId) != msg.sender) revert NotAgentOwner();
+        if (block.timestamp > deadline) revert SignatureExpired();
 
         bytes32 hash = keccak256(
             abi.encodePacked(
@@ -173,7 +203,7 @@ contract AgentRegistry is ERC721URIStorage, Ownable {
         bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(hash);
         address signer = ethSignedHash.recover(signature);
 
-        require(signer == newWallet, "Invalid signature");
+        if (signer != newWallet) revert InvalidSignature();
 
         _agentWallets[agentId] = newWallet;
         emit AgentWalletSet(agentId, newWallet);
@@ -185,6 +215,11 @@ contract AgentRegistry is ERC721URIStorage, Ownable {
         );
     }
 
+    /**
+     * @notice Retrieves the wallet address for an agent
+     * @param agentId The ID of the agent
+     * @return The wallet address
+     */
     function getAgentWallet(uint256 agentId) external view returns (address) {
         return _agentWallets[agentId];
     }

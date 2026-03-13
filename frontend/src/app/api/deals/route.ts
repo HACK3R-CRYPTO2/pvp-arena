@@ -17,46 +17,37 @@ export async function GET(request: Request) {
         
         const hookAddress = P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`;
         const registryAddress = P2P_TRADING_ARENA_ADDRESSES.AgentRegistry as `0x${string}`;
+        const hookAbi = (ArenaHookABI as any).abi || ArenaHookABI;
+        const registryAbi = (AgentRegistryABI as any).abi || AgentRegistryABI;
 
-        // Dynamic Bot Addresses: Fetch from Registry
-        let ALPHA_ADDRESS = '';
-        let BETA_ADDRESS = '';
-        try {
-            const [alphaAddr, betaAddr] = await Promise.all([
-                client.readContract({
-                    address: registryAddress,
-                    abi: (AgentRegistryABI as any).abi || AgentRegistryABI,
-                    functionName: 'getAgentWallet',
-                    args: [BigInt(1)],
-                }),
-                client.readContract({
-                    address: registryAddress,
-                    abi: (AgentRegistryABI as any).abi || AgentRegistryABI,
-                    functionName: 'getAgentWallet',
-                    args: [BigInt(2)],
-                })
-            ]) as [`0x${string}`, `0x${string}`];
-            ALPHA_ADDRESS = alphaAddr.toLowerCase();
-            BETA_ADDRESS = betaAddr.toLowerCase();
-        } catch (botErr) {
-            ALPHA_ADDRESS = '0xd2df53d9791e98db221842dd885f4144014bbe2a'.toLowerCase();
-            BETA_ADDRESS = '0x84a78a6f73ac2b74c457965f38f3afac9a34a6cc'.toLowerCase();
-        }
+        // 1. Fetch live price from backend and contract data
+        const [statusRes, alphaAddr, betaAddr, nextOrderIdRaw] = await Promise.all([
+            fetch('http://localhost:3001/status').then(r => r.json()).catch(() => ({ ethPrice: 3000 })),
+            client.readContract({
+                address: registryAddress,
+                abi: registryAbi,
+                functionName: 'getAgentWallet',
+                args: [BigInt(1)],
+            }).catch(() => '0xd2df53d9791e98db221842dd885f4144014bbe2a'),
+            client.readContract({
+                address: registryAddress,
+                abi: registryAbi,
+                functionName: 'getAgentWallet',
+                args: [BigInt(2)],
+            }).catch(() => '0x84a78a6f73ac2b74c457965f38f3afac9a34a6cc'),
+            client.readContract({
+                address: hookAddress,
+                abi: hookAbi,
+                functionName: 'nextOrderId',
+            }) as Promise<bigint>
+        ]);
 
-        // Get total number of orders
-        const nextOrderIdRaw = await client.readContract({
-            address: hookAddress,
-            abi: (ArenaHookABI as any).abi || ArenaHookABI,
-            functionName: 'nextOrderId',
-        }) as bigint;
-
+        const LIVE_PRICE = statusRes.ethPrice || 3000;
+        const ALPHA_ADDRESS = (alphaAddr as string).toLowerCase();
+        const BETA_ADDRESS = (betaAddr as string).toLowerCase();
         const count = Number(nextOrderIdRaw);
 
-        // Fetch last 15 orders
-        const startIndex = Math.max(0, count - 15);
-
-        // Unified search range for all logs: 45,000 blocks (~12.5 hours)
-        // This is safe under the 50,000 block public RPC limit
+        // 2. Fetch logs (parallelized)
         const latestBlock = await client.getBlockNumber();
         const fromBlock = latestBlock > BigInt(45000) ? latestBlock - BigInt(45000) : BigInt(0);
 
@@ -64,21 +55,21 @@ export async function GET(request: Request) {
             client.getLogs({
                 address: hookAddress,
                 event: parseAbiItem('event OrderFilled(uint256 indexed orderId, address indexed taker, bool byReactiveAi)'),
-                fromBlock: fromBlock
+                fromBlock
             }),
             client.getLogs({
                 address: hookAddress,
                 event: parseAbiItem('event OrderCancelled(uint256 indexed orderId, address indexed maker)'),
-                fromBlock: fromBlock
+                fromBlock
             }),
             client.getLogs({
                 address: hookAddress,
                 event: parseAbiItem('event OrderPosted(uint256 indexed orderId, address indexed maker, bool isHuman, uint128 amountIn, uint128 minAmountOut)'),
-                fromBlock: fromBlock
+                fromBlock
             })
         ]);
 
-        const latestBlocks: Record<string, any> = {};
+        // 3. Map logs to lookups
         const winnersMap: Record<number, { taker: string, byAi: boolean }> = {};
         fillLogs.forEach(log => {
             if (log.args.orderId !== undefined) {
@@ -89,28 +80,6 @@ export async function GET(request: Request) {
             }
         });
 
-        const postedTimeMap: Record<number, number> = {};
-        const blockTimestampMap: Record<string, number> = {};
-
-        // Fetch timestamps for only the last 5 unique blocks
-        const uniqueBlocks = [...new Set(postedLogs.map(l => l.blockNumber))].slice(-5);
-        for (const b of uniqueBlocks) {
-            if (b) {
-                try {
-                    const block = await client.getBlock({ blockNumber: b });
-                    blockTimestampMap[b.toString()] = Number(block.timestamp);
-                } catch (e) {
-                    // Ignore transient block fetch errors
-                }
-            }
-        }
-
-        postedLogs.forEach(log => {
-            if (log.args.orderId !== undefined && log.blockNumber) {
-                postedTimeMap[Number(log.args.orderId)] = blockTimestampMap[log.blockNumber.toString()];
-            }
-        });
-
         const cancelsMap: Record<number, boolean> = {};
         cancelLogs.forEach(log => {
             if (log.args.orderId !== undefined) {
@@ -118,43 +87,94 @@ export async function GET(request: Request) {
             }
         });
 
+        // 4. Optimization: Fetch block timestamps for posted orders (limited)
+        const uniqueBlocks = [...new Set(postedLogs.map(l => l.blockNumber))].slice(-10);
+        const blockTimestamps: Record<string, number> = {};
+        await Promise.all(uniqueBlocks.map(async (b) => {
+            if (b) {
+                const block = await client.getBlock({ blockNumber: b }).catch(() => null);
+                if (block) blockTimestamps[b.toString()] = Number(block.timestamp);
+            }
+        }));
+
+        const postedTimeMap: Record<number, number> = {};
+        postedLogs.forEach(log => {
+            if (log.args.orderId !== undefined && log.blockNumber) {
+                postedTimeMap[Number(log.args.orderId)] = blockTimestamps[log.blockNumber.toString()] || 0;
+            }
+        });
+
+        // 5. Fetch order data in batches using multicall
+        const startIndex = Math.max(0, count - 20); // Limit to last 20
         const orderIds = Array.from({ length: count - startIndex }, (_, i) => BigInt(startIndex + i));
+        
+        const orderResults = await client.multicall({
+            contracts: orderIds.map(id => ({
+                address: hookAddress,
+                abi: hookAbi,
+                functionName: 'orders',
+                args: [id],
+            })),
+        });
 
-        const orderPromises = orderIds.map(async (id) => {
-            try {
-                const orderData = await client.readContract({
-                    address: hookAddress,
-                    abi: (ArenaHookABI as any).abi || ArenaHookABI,
-                    functionName: 'orders',
-                    args: [id],
-                }) as any;
+        // Helper for block-deterministic simulation (must match StrategyService.ts)
+        const getSimulatedPrice = (blockNumber: number) => {
+            const baseline = 3000;
+            const amplitude = 50;
+            const period = 100;
+            const oscillation = Math.sin(blockNumber / period) * amplitude;
+            return parseFloat((baseline + oscillation).toFixed(2));
+        };
 
+        const deals = orderResults
+            .map((res, index) => {
+                if (res.status === 'failure' || !res.result) return null;
+                const orderData = res.result as any;
+                const id = Number(orderIds[index]);
+
+                // Struct Mapping (New):
+                // 0: maker, 1: expiry, 2: sellToken0, 3: active, 4: isHuman, 5: amountIn, 6: minAmountOut, 7: poolId, 8: currency0, 9: currency1
                 const makerAddress = orderData[0].toLowerCase();
-                const isTKNA = orderData[1];
-                const fromAmountRaw = orderData[2].toString();
-                const toAmountRaw = orderData[3].toString();
-                const fromAmount = Number(orderData[2]) / 1e18;
-                const toAmount = Number(orderData[3]) / 1e18;
-                const expiry = Number(orderData[4]);
-                const isCompleted = !orderData[5];
-                const isHumanMaker = !!orderData[7];
+                const expiry = Number(orderData[1]);
+                const isTKNA = orderData[2];
+                const active = orderData[3];
+                const isHumanMaker = !!orderData[4];
+                const fromAmountRaw = orderData[5].toString();
+                const toAmountRaw = orderData[6].toString();
+                
+                const fromAmount = Number(orderData[5]) / 1e18;
+                const toAmount = Number(orderData[6]) / 1e18;
 
+                const isCompleted = !active;
+                const winnerInfo = winnersMap[id];
+                const takerAddress = winnerInfo?.taker || null;
+
+                // Mark-to-Market Profit Tracking
                 let profit = null;
-                if (isCompleted) {
-                    const priceSeed = 3000 + ( (Number(id) * 1337) % 100 ) - 50; 
+                if (isCompleted && !cancelsMap[id]) {
+                    // SENIOR FIX: If completed, use the price at the block of execution (Frozen History)
+                    // If block info is missing (old log), fall back to LIVE_PRICE or ID-seed
+                    const fillLog = fillLogs.find(l => Number(l.args.orderId) === id);
+                    const executionPrice = fillLog?.blockNumber 
+                        ? getSimulatedPrice(Number(fillLog.blockNumber))
+                        : LIVE_PRICE;
+
                     if (isTKNA) {
-                        const marketValue = fromAmount * priceSeed;
+                        const marketValue = fromAmount * executionPrice;
                         profit = (marketValue - toAmount).toFixed(2);
                     } else {
-                        const marketValueGiven = toAmount * priceSeed;
+                        const marketValueGiven = toAmount * executionPrice;
                         profit = (fromAmount - marketValueGiven).toFixed(2);
+                    }
+                } else if (active) {
+                    // If still active, show live unrealized profit
+                    if (isTKNA) {
+                        profit = (fromAmount * LIVE_PRICE - (toAmount)).toFixed(2);
+                    } else {
+                        profit = (fromAmount - (toAmount * LIVE_PRICE)).toFixed(2);
                     }
                 }
 
-                const i = Number(id);
-                const winnerInfo = winnersMap[i];
-                const takerAddress = winnerInfo?.taker || null;
-                
                 let agentId = null;
                 if (takerAddress === ALPHA_ADDRESS) agentId = 1;
                 else if (takerAddress === BETA_ADDRESS) agentId = 2;
@@ -166,7 +186,7 @@ export async function GET(request: Request) {
                     (takerAddress === ALPHA_ADDRESS || takerAddress === BETA_ADDRESS);
 
                 return {
-                    id: i.toString(),
+                    id: id.toString(),
                     regime: 'p2p',
                     fromToken: isTKNA ? 'TKNA' : 'TKNB',
                     toToken: isTKNA ? 'TKNB' : 'TKNA',
@@ -182,11 +202,11 @@ export async function GET(request: Request) {
                     agentId: agentId,
                     isInternalClash: isInternalClash,
                     status: isCompleted 
-                        ? (cancelsMap[i] ? 'cancelled' : 'completed') 
+                        ? (cancelsMap[id] ? 'cancelled' : 'completed') 
                         : (Date.now()/1000 > expiry ? 'expired' : 'active'),
-                    profit: profit,
-                    createdAt: postedTimeMap[i] 
-                        ? new Date(postedTimeMap[i] * 1000).toISOString() 
+                    profit,
+                    createdAt: postedTimeMap[id] 
+                        ? new Date(postedTimeMap[id] * 1000).toISOString() 
                         : new Date(Math.min(expiry * 1000 - 300 * 1000, Date.now())).toISOString(),
                     poolKey: {
                         currency0: orderData[8],
@@ -196,13 +216,8 @@ export async function GET(request: Request) {
                         hooks: hookAddress
                     }
                 };
-            } catch (orderErr) {
-                console.error(`Error fetching order ${id}:`, orderErr);
-                return null;
-            }
-        });
-
-        const deals = (await Promise.all(orderPromises)).filter((d): d is NonNullable<typeof d> => d !== null);
+            })
+            .filter((d): d is NonNullable<typeof d> => d !== null);
 
         const filteredDeals = filterAddress 
             ? deals.filter(d => 

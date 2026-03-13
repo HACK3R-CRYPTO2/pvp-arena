@@ -8,6 +8,7 @@ import { Header } from '@/components/header'
 import { MarketPulse } from '@/components/market-pulse'
 import { OrdersList } from '@/components/orders-list'
 import { StatsBar } from '@/components/stats-bar'
+import { ArenaStatusHeader } from '@/components/arena-status-header'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useRef } from 'react'
@@ -118,9 +119,12 @@ function HomeContent() {
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.05),transparent)]">
 
         {/* HUD Area (Fixed) */}
-        <header className="h-16 border-b border-white/5 bg-black/20 flex items-center px-8 justify-between shrink-0">
-          <div className="flex-1 max-w-2xl">
-            <MarketPulse variant="slim" />
+        <header className="h-16 border-b border-white/5 bg-black/20 flex items-center px-8 justify-between shrink-0 gap-8">
+          <div className="flex-1 max-w-xl">
+             <MarketPulse variant="slim" />
+          </div>
+          <div className="flex items-center justify-center">
+            <ArenaStatusHeader />
           </div>
           <div className="flex-1 flex justify-end">
             <StatsBar viewMode={viewMode} botAddress={botAddress} variant="compact" />

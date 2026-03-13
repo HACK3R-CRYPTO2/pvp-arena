@@ -14,8 +14,13 @@ export class BotService {
     private bots: Map<number, BotProfile> = new Map();
 
     constructor(provider: ethers.JsonRpcProvider) {
+        if (!CONFIG.PRIVATE_KEY) {
+            console.error("❌ Fatal: PRIVATE_KEY not found in CONFIG");
+            return;
+        }
+
         // AlphaBot: AgentID 1 - Uses the main private key
-        const alphaWallet = new ethers.Wallet(CONFIG.PRIVATE_KEY, provider) as unknown as ethers.Wallet;
+        const alphaWallet = new ethers.Wallet(CONFIG.PRIVATE_KEY, provider);
         this.bots.set(1, {
             id: 1,
             name: 'AlphaMachine',
@@ -25,9 +30,9 @@ export class BotService {
             wallet: alphaWallet
         });
 
-        // BetaBot: AgentID 2 - USES A DERIVED KEY (Matching the registration script)
+        // BetaBot: AgentID 2 - USES A DERIVED KEY
         const betaKey = ethers.keccak256(ethers.toUtf8Bytes(CONFIG.PRIVATE_KEY + "beta"));
-        const betaWallet = new ethers.Wallet(betaKey, provider) as unknown as ethers.Wallet;
+        const betaWallet = new ethers.Wallet(betaKey, provider);
         this.bots.set(2, {
             id: 2,
             name: 'BetaSentinel',
@@ -50,27 +55,30 @@ export class BotService {
         const addr = address.toLowerCase();
         return this.getAllBots().find(b => b.address.toLowerCase() === addr);
     }
+
     async getBotAssets(address: string) {
         const addr = address.toLowerCase();
+        const provider = this.bots.get(1)?.wallet.provider;
         
+        if (!provider) return { assets: [], totalUSD: 0 };
+
         // TKNA / TKNB on Unichain Sepolia
         const TKNA_ADDR = '0x3263d3c28e2535d1bdb70e9567eec8ee2fdd40e7';
         const TKNB_ADDR = '0xddee18b54cc13de0e9ec85b7affbb031cc46a7f1';
         
         const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
-        const tknA = new ethers.Contract(TKNA_ADDR, erc20Abi, this.bots.get(1)?.wallet.provider!);
-        const tknB = new ethers.Contract(TKNB_ADDR, erc20Abi, this.bots.get(1)?.wallet.provider!);
+        const tknA = new ethers.Contract(TKNA_ADDR, erc20Abi, provider);
+        const tknB = new ethers.Contract(TKNB_ADDR, erc20Abi, provider);
         
         try {
             const [ethBal, tknABal, tknBBal] = await Promise.all([
-                this.bots.get(1)?.wallet.provider!.getBalance(addr),
-                tknA.balanceOf(addr),
-                tknB.balanceOf(addr)
+                provider!.getBalance(addr),
+                (tknA as any).balanceOf(addr).catch(() => 0n),
+                (tknB as any).balanceOf(addr).catch(() => 0n)
             ]);
 
-            // Mock prices for USD calculation
             const ETH_PRICE = 3000;
-            const TKN_PRICE = 10; // Mock $10 per token
+            const TKN_PRICE = 10; 
 
             const assets = [
                 {

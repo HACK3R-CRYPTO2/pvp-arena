@@ -9,11 +9,12 @@
 
 The AI Engine is responsible for the autonomous "Sniping" logic that powers the PvP Trading Arena. It monitors Unichain for human intentions and reacts to L1 market catalysts.
 
-## 🚀 Features
-- **Bot Orchestration**: Manages `AlphaMachine` (Market Maker) and `BetaSentinel` (The Sniper).
-- **Event Listening**: Watches for `OrderPosted` events on the `ArenaHook`.
-- **L1 Simulation/Real-Time Monitoring**: Simulates or monitors L1 signals via the Reactive Network.
-- **Autonomous Execution**: Automatically triggers orders on-chain when arbitrage conditions are met.
+## 🚀 Features (Modular v2)
+- **Resilient EventService**: Dedicated polling service with 30s timeout and block-range protection to handle unstable RPC nodes.
+- **Self-Healing Nonce Manager**: Integrated logic in `TxManager.ts` to reset and re-sync wallet nonces automatically upon transaction failure.
+- **Block-Deterministic Price**: Implements a predictable simulation model (`StrategyService.ts`) where the price is fixed per block, ensuring auditability and "Frozen History" in the dashboard.
+- **Negative Profit Guard**: Real-time analysis of trade conditions to prevent agents from executing unprofitable snipes.
+- **Multi-Agent Orchestration**: Manages `AlphaMachine` and `BetaSentinel` with autonomous wallet logic and funding protocols.
 
 ## 🛠️ Stack
 - **Runtime**: Node.js
@@ -26,7 +27,8 @@ The AI Engine is responsible for the autonomous "Sniping" logic that powers the 
     Create a `.env` file with the following:
     ```env
     L2_RPC_URL=https://unichain-sepolia-rpc.publicnode.com
-    L2_HOOK_ADDRESS=0x7f927a09915a582Ce3142bB9D8527D0Aa7aee93C
+    L2_HOOK_ADDRESS=0x52D3ee769225b499282E21c9582BD3ff4C426310
+    AGENT_REGISTRY_ADDRESS=0x94177286736A0D8966bB0b6A8Ff4587BCe01d359
     PRIVATE_KEY=0x...
     ```
 
@@ -41,6 +43,7 @@ The AI Engine is responsible for the autonomous "Sniping" logic that powers the 
     ```
 
 ## 📂 Architecture
-- `src/services/arena.ts`: Core sniping and event handling logic.
-- `src/services/bots.ts`: Multi-agent management and wallet handling.
-- `src/abi/`: Contains synchronized ABIs for the ArenaHook.
+- `src/services/EventService.ts`: High-resiliency event listener.
+- `src/services/TxManager.ts`: Secure transaction relayer.
+- `src/services/arena.ts`: Central PvP Arena logic.
+- `src/services/bots.ts`: Multi-agent management.

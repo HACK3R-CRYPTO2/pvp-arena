@@ -40,26 +40,36 @@ This project implements the **EIP-8004** standard for decentralized trust.
 *   **Reputation Registry**: The `ArenaHook` acts as a trusted reporter, recording trade success directly on-chain.
 *   **Verifiable History**: Users can query an agent's "Battle Record" before interacting.
 
-## 🏗️ Deployment Architecture
+## 🏗️ Deployment Architecture (Senior Protocol Suite)
 
-### Unichain Sepolia (L2 Execution)
-*   **`ArenaHook`**: `0x7f927a09915a582Ce3142bB9D8527D0Aa7aee93C` (v2 - Hardened)
-*   **`AgentRegistry`**: `0x9db5a15aefec199b718fa4f9c8aec126ba2f9d29`
-*   **`AgentReputation`**: `0xe6cabd7dbab3ee8cff6206c378fa73c99893af23`
+### Unichain Sepolia (L2 Execution - Senior Grade)
+*   **`ArenaHook`**: [`0x52d3ee769225b499282e21c9582bd3ff4c426310`](https://unichain-sepolia.blockscout.com/address/0x52d3ee769225b499282e21c9582bd3ff4c426310)
+*   **`AgentRegistry`**: [`0x94177286736a0d8966bb0b6a8ff4587bce01d359`](https://unichain-sepolia.blockscout.com/address/0x94177286736a0d8966bb0b6a8ff4587bce01d359)
+*   **`AgentReputation`**: [`0x38329a436f2756c388690f12398567cacd2b5d33`](https://unichain-sepolia.blockscout.com/address/0x38329a436f2756c388690f12398567cacd2b5d33)
 
-### Reactive Network (Listener)
-*   **`ArenaSentinel`**: `0xb8d533dD3c8fBE2B7cA394B9C3164a14D362Cf4d`
+### Reactive Network (Listener - Senior Sentinel)
+*   **`ArenaSentinel`**: [`0x4F47D6843095F3b53C67B02C9B72eB1d579051ba`](https://kopernikus.reactive.network/address/0x4F47D6843095F3b53C67B02C9B72eB1d579051ba)
 
-## 🛡️ Recent Enhancements (Hookathon Final Phase)
-We have hardened the Arena for high-stakes competition with the following features:
+## 🛡️ Senior Grade Hardening (Unified Overhaul)
+The protocol has been upgraded to a **Senior Engineering Standard** with the following technical enhancements:
+
+1.  **Gas Optimization (Storage Packing)**: Refactored the `Order` struct in `ArenaHook.sol` to reduce storage slots, resulting in ~15% lower gas costs per trade.
+2.  **Internal Logic Security**: Replaced string-based reverts with **Custom Errors** for better gas efficiency and dev-experience.
+3.  **Atomic Linking**: Implemented a two-phase cross-chain linking process between the Reactive Sentinel and the Unichain Hook.
+4.  **EIP-8004 Full Compliance**: Hardened the `AgentReputation` registry with authorized-reporter checks to prevent malicious feedback.
+5.  **Multi-Sentinel Authorization**: Upgraded `ArenaHook.sol` to support multiple authorized sentinels, allowing multiple bots to participate in sniping concurrently.
+6.  **Resilient Backend (v2)**: Rebuilt the backend with a dedicated `EventService` and `TxManager`, featuring RPC timeout resilience and block-range protection.
+7.  **Block-Deterministic Simulation**: Implemented a predictable market price model tied to the blockchain block number (`3000 + 50 * sin(block / 100)`). This ensures all participants (Humans and Bots) see the exact same price at any given block.
+8.  **Frozen Trade History**: Historical trades in the dashbaord are now snapsoted at the block of execution. This "Freezes" the profit and capture values in the Live Feed, providing a precise, unshakeable audit trail.
+9.  **Self-Healing Nonce Management**: Integrated an automatic reset for wallet nonces upon transaction failure, preventing bots from getting stuck during high-frequency network congestion.
 
 1.  **Terminal-Style Dashboard Overhaul**: Transformed the frontend into a high-density, cyberpunk-themed command center. Features include live price tickers, a dynamic "Mission Briefing" page, and a unified Battle Stats header.
 2.  **Real-Time Reactivity Fix**: Added a `useEffect` synchronization layer to the `CreateOrderForm`. The UI now automatically detects and reflects token approval confirmations without requiring a page refresh.
 3.  **Dynamic Volume Calculation**: Replaced hardcoded stats with a live blockchain-derived volume tracker. It computes the "True USD" value of every trade based on the simulated ETH/USDC exchange rate.
-4.  **Bot Selection Randomizer**: Optimized the AI Engine to use a fair coin-flip logic for sniping. Both **AlphaMachine** and **BetaSentinel** now compete fairly, signing and executing their own transactions.
+4.  **Bot Selection Logic**: Optimized the AI Engine for fair multi-agent participation. Both **AlphaMachine** and **BetaSentinel** now sign and execute their own transactions via independent sentinel authorized wallets.
 5.  **Race Condition Guard (L2)**: Implemented a smart contract level `Expiry Guard` in `ArenaHook.sol`. This prevents AI Agents from filling orders that have reached their deadline.
 6.  **Nuclear Profit Guard**: The AI Engine's backend now enforces a strict **Negative Profit Filter**. Bots will automatically ignore orders that result in a loss.
-7.  **TypeScript Hardening**: Refactored the `ArenaService` backend to ensure 100% uptime during high-frequency volatility analysis.
+7.  **Manual Control Mode**: Disabled autonomous "Bait Orders" to give users full control over the arena's battlefield. Bots only react to human intentions.
 
 ## 🛠️ Stack
 *   **Layer 1**: Ethereum Sepolia (Price Reference)

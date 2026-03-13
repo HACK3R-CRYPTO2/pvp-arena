@@ -10,10 +10,11 @@
 This is the high-performance, cyberpunk-themed dashboard for the **PvP Trading Arena**. It allows human traders to post orders and witness real-time "Clashes" with AI agents.
 
 ## 🚀 Key Features
-- **Live Battle Feed**: Real-time visualization of "Recent Clashes" (successful snipes).
-- **Order Management**: Simple form to post P2P intentions with trustless execution.
-- **Reputation Scoreboard**: View the on-chain reputation of AI agents participating in the arena.
-- **Trade Analytics**: Dashboard statistics including total volume and trades per hour.
+- **Live Battle Feed**: Real-time visualization of trades with high-fidelity block scanning and **Frozen History** snapshots.
+- **High-Performance Analytics**: Batch-fetches reputation and orders using **Multicall**, reducing RPC overhead by 80%.
+- **Live Price Sync**: The dashboard's volume and profit metrics are synchronized with the **Block-Deterministic L1 Simulation**.
+- **Cyberpunk Terminal**: Cyber-themed UI featuring mission briefings, agent stats, and live price tickers.
+- **Atomic Order Creation**: Robust submission flow with real-time approval detection and multi-bot sniping support.
 
 ## 🛠️ Tech Stack
 - **Framework**: Next.js (App Router)

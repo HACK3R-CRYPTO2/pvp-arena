@@ -16,12 +16,17 @@ export async function GET(request: Request) {
 
         const hookAddress = P2P_TRADING_ARENA_ADDRESSES.ArenaHook as `0x${string}`;
 
-        // Get total number of orders
-        const nextOrderIdRaw = await client.readContract({
-            address: hookAddress,
-            abi: (ArenaHookABI as any).abi || ArenaHookABI,
-            functionName: 'nextOrderId',
-        }) as bigint;
+        // Fetch live price from backend status
+        const [statusRes, nextOrderIdRaw] = await Promise.all([
+            fetch('http://localhost:3001/status').then(r => r.json()).catch(() => ({ ethPrice: 3000 })),
+            client.readContract({
+                address: hookAddress,
+                abi: (ArenaHookABI as any).abi || ArenaHookABI,
+                functionName: 'nextOrderId',
+            }) as Promise<bigint>
+        ]);
+
+        const LIVE_PRICE = statusRes.ethPrice || 3000;
 
         const count = Number(nextOrderIdRaw);
         
@@ -53,6 +58,15 @@ export async function GET(request: Request) {
         let botPnl = 0;
         let globalPnl = 0;
 
+        // Helper for block-deterministic simulation (must match StrategyService.ts)
+        const getSimulatedPrice = (blockNumber: number) => {
+            const baseline = 3000;
+            const amplitude = 50;
+            const period = 100;
+            const oscillation = Math.sin(blockNumber / period) * amplitude;
+            return parseFloat((baseline + oscillation).toFixed(2));
+        };
+
         for (let i = startIndex; i < count; i++) {
             try {
                 const orderData = await client.readContract({
@@ -63,10 +77,11 @@ export async function GET(request: Request) {
                 }) as any;
 
                 const makerAddress = orderData[0].toLowerCase();
-                const isTKNA = orderData[1];
-                const fromAmount = Number(orderData[2]) / 1e18;
-                const toAmount = Number(orderData[3]) / 1e18;
-                const isCompleted = !orderData[5];
+                const sellToken0 = orderData[2]; // sellToken0
+                const active = orderData[3]; // active
+                const fromAmount = Number(orderData[5]) / 1e18;
+                const toAmount = Number(orderData[6]) / 1e18;
+                const isCompleted = !active;
 
                 const winnerInfo = winnersMap[i];
                 const takerAddress = winnerInfo?.taker || null;
@@ -75,7 +90,7 @@ export async function GET(request: Request) {
                                      makerAddress === filterAddress || 
                                      takerAddress === filterAddress;
 
-                const tradeVolumeUsd = fromAmount * (isTKNA ? 3000 : 1);
+                const tradeVolumeUsd = fromAmount * (sellToken0 ? LIVE_PRICE : 1);
                 globalVolume += tradeVolumeUsd;
 
                 if (!isBotInvolved) continue;
@@ -84,17 +99,22 @@ export async function GET(request: Request) {
                 botVolume += tradeVolumeUsd;
 
                 if (isCompleted) {
-                    const priceSeed = 3000 + ( (i * 1337) % 100 ) - 50; 
                     const isWinner = takerAddress === filterAddress;
                     
-                    if (isTKNA) {
+                    // Use block of execution for finalized profit (Frozen History)
+                    const fillLog = fillLogs.find(l => Number(l.args.orderId) === i);
+                    const executionPrice = fillLog?.blockNumber 
+                        ? getSimulatedPrice(Number(fillLog.blockNumber))
+                        : LIVE_PRICE;
+
+                    if (sellToken0) {
                         // Maker sell TKNA (Asset). Sniper gets Asset.
-                        const capture = (fromAmount * priceSeed) - toAmount;
+                        const capture = (fromAmount * executionPrice) - toAmount;
                         botPnl += isWinner ? capture : -capture;
                         globalPnl += capture;
                     } else {
                         // Maker sell TKNB (Stable). Sniper gets Stable.
-                        const capture = fromAmount - (toAmount * priceSeed);
+                        const capture = fromAmount - (toAmount * executionPrice);
                         botPnl += isWinner ? capture : -capture;
                         globalPnl += capture;
                     }
@@ -102,13 +122,15 @@ export async function GET(request: Request) {
             } catch (e) {}
         }
 
+        const aiFills = fillLogs.filter(log => !!log.args.byReactiveAi).length;
+
         return NextResponse.json({
             stats: {
-                totalTrades: filterAddress ? botTrades : count,
-                tradesPerHour: filterAddress ? botTrades : (count / 1.5), // Show activity over last 90 mins for demo
-                reactiveExecs: filterAddress ? (botTrades > 2 ? 1 : 0) : Math.floor(count / 3),
-                totalVolume: filterAddress ? botVolume : globalVolume,
-                totalPnl: filterAddress ? botPnl : globalPnl,
+                totalTrades: count,
+                tradesPerHour: (count / 1.5), 
+                reactiveExecs: aiFills,
+                totalVolume: globalVolume,
+                totalPnl: globalPnl,
             }
         });
     } catch (error) {

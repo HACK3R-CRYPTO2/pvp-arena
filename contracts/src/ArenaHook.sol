@@ -19,33 +19,32 @@ import {
     ModifyLiquidityParams
 } from "@v4-core/types/PoolOperation.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {
-    ReentrancyGuard
-} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {AgentReputation} from "./AgentReputation.sol";
 import {AgentRegistry} from "./AgentRegistry.sol";
 
 /// @title ArenaHook
 /// @notice Uniswap v4 hook for PvP Trading Arena (Human vs AI & Bot vs Bot)
-contract ArenaHook is IHooks, ReentrancyGuard {
+/// @dev Implements gas-optimized order management and EIP-8004 reputation integration.
+contract ArenaHook is IHooks, ReentrancyGuard, Ownable2Step {
     using BalanceDeltaLibrary for BalanceDelta;
     using CurrencyLibrary for Currency;
     using SafeERC20 for IERC20;
 
+    /// @dev Packed struct to minimize storage slots (Total: 4 slots)
     struct Order {
-        address maker;
-        bool sellToken0;
-        uint128 amountIn;
-        uint128 minAmountOut;
-        uint256 expiry;
-        bool active;
-        bytes32 poolId;
-        bool isHuman;
-        Currency currency0;
-        Currency currency1;
+        address maker;        // 20 bytes (Slot 0)
+        uint64 expiry;        // 8 bytes  (Slot 0)
+        bool sellToken0;      // 1 byte   (Slot 0)
+        bool active;          // 1 byte   (Slot 0)
+        bool isHuman;         // 1 byte   (Slot 0)
+        uint128 amountIn;     // 16 bytes (Slot 1)
+        uint128 minAmountOut; // 16 bytes (Slot 1)
+        bytes32 poolId;       // 32 bytes (Slot 2)
+        Currency currency0;   // 20 bytes (Slot 3)
+        Currency currency1;   // 20 bytes (Slot 4)
     }
 
     // Events
@@ -74,12 +73,13 @@ contract ArenaHook is IHooks, ReentrancyGuard {
     error AmountOverflow();
     error PoolMismatch();
     error AlreadyExpired();
+    error InvalidAgentWallet();
 
     uint256 public constant MAX_ITERATIONS = 50;
 
     // State
     IPoolManager public immutable POOL_MANAGER;
-    address public sentinel; // Reactive Network Contract
+    mapping(address => bool) public isSentinel; // Multiple authorized sentinels
     mapping(address => bool) public allowedBots; // Whitelist for Bot-vs-Bot mode
 
     uint256 public nextOrderId;
@@ -89,13 +89,16 @@ contract ArenaHook is IHooks, ReentrancyGuard {
     // EIP-8004 Integration
     AgentReputation public reputation;
 
-    constructor(IPoolManager _poolManager, address _reputation) {
+    constructor(
+        IPoolManager _poolManager,
+        address _reputation
+    ) Ownable(msg.sender) {
         POOL_MANAGER = _poolManager;
-        reputation = AgentReputation(_reputation); // Can be address(0)
+        reputation = AgentReputation(_reputation);
     }
 
     function _onlySentinel() internal view {
-        if (msg.sender != sentinel) revert NotSentinel();
+        if (!isSentinel[msg.sender]) revert NotSentinel();
     }
 
     modifier onlySentinel() {
@@ -112,14 +115,30 @@ contract ArenaHook is IHooks, ReentrancyGuard {
         _;
     }
 
-    function setSentinel(address _sentinel) external {
-        // TODO: Add admin check (for hackathon demo, open)
-        sentinel = _sentinel;
+    /// @notice Updates the Reactive Sentinel status for an address
+    /// @param _sentinel The sentinel address
+    /// @param _status True to authorize, false to revoke
+    function setSentinel(address _sentinel, bool _status) external onlyOwner {
+        isSentinel[_sentinel] = _status;
+    }
+
+    /// @notice Updates the Reputation contract address
+    /// @param _reputation The new reputation contract address
+    function setReputation(address _reputation) external onlyOwner {
+        reputation = AgentReputation(_reputation);
     }
 
     // --- Order Board (Battlefield) ---
 
-    // Humans & Bots post orders here
+    /**
+     * @notice Posts a new trade order for the Arena
+     * @param key The Uniswap v4 pool key
+     * @param sellToken0 True if selling token0, false if selling token1
+     * @param amountIn Amount of tokens being escrowed
+     * @param minAmountOut Minimum acceptable amount of output tokens
+     * @param duration Order lifespan in seconds
+     * @return orderId The unique identifier for the created order
+     */
     function postOrder(
         PoolKey calldata key,
         bool sellToken0,
@@ -134,13 +153,13 @@ contract ArenaHook is IHooks, ReentrancyGuard {
 
         orders[orderId] = Order({
             maker: msg.sender,
+            expiry: uint64(block.timestamp + duration),
             sellToken0: sellToken0,
+            active: true,
+            isHuman: tx.origin == msg.sender,
             amountIn: amountIn,
             minAmountOut: minAmountOut,
-            expiry: block.timestamp + duration,
-            active: true,
             poolId: poolId,
-            isHuman: tx.origin == msg.sender,
             currency0: key.currency0,
             currency1: key.currency1
         });
@@ -163,13 +182,18 @@ contract ArenaHook is IHooks, ReentrancyGuard {
         );
     }
 
+    /**
+     * @notice Cancels an active order and refunds escrowed tokens
+     * @param orderId The ID of the order to cancel
+     * @param key The pool key associated with the order
+     */
     function cancelOrder(
         uint256 orderId,
         PoolKey calldata key
     ) external nonReentrant {
         Order storage order = orders[orderId];
         if (orderId >= nextOrderId) revert OrderNotFound();
-        if (msg.sender != order.maker) revert Unauthorized(); // Only maker can cancel
+        if (msg.sender != order.maker) revert Unauthorized();
         if (!order.active) revert OrderNotActive();
 
         bytes32 poolId = _getPoolId(key);
@@ -198,6 +222,13 @@ contract ArenaHook is IHooks, ReentrancyGuard {
     // We already passed `reputation` address. The `reputation` contract knows `identityRegistry`.
     // We can read it from there.
 
+    /**
+     * @notice Triggers an order fill by the Reactive Sentinel
+     * @dev Only callable by the authorized sentinel. Updates agent reputation upon success.
+     * @param orderId ID of the order to fill
+     * @param agentId ID of the AI agent executing the fill
+     * @param beneficiary Wallet address of the AI agent to receive maker's tokens
+     */
     function triggerOrder(
         uint256 orderId,
         uint256 agentId,
@@ -205,31 +236,24 @@ contract ArenaHook is IHooks, ReentrancyGuard {
     ) external onlySentinel nonReentrant {
         Order storage order = orders[orderId];
         if (!order.active) revert OrderNotActive();
-        if (block.timestamp > order.expiry) revert AlreadyExpired(); // Precise Expiry Guard
+        if (block.timestamp > order.expiry) revert AlreadyExpired();
 
-        // EIP-8004: Validation (Optional but good practice)
-        // For Hackathon Demo: Bypass registry check for Sentinel execution
-        if (address(reputation) != address(0) && msg.sender != sentinel) {
+        // EIP-8004: Validation
+        if (address(reputation) != address(0) && !isSentinel[msg.sender]) {
             address registry = reputation.identityRegistry();
-            // We trust the sentinel to pass the correct agentId for the beneficiary,
-            // but strictly we should check:
             if (registry != address(0)) {
                 address wallet = AgentRegistry(registry).getAgentWallet(
                     agentId
                 );
-                if (wallet != beneficiary) revert("Invalid Agent Wallet");
+                if (wallet != beneficiary) revert InvalidAgentWallet();
             }
         }
 
-        // AI "fills" the order by providing the requested out-amount
-        // Funds come from 'beneficiary' (AI Wallet) approved to Hook.
-
-        Currency tokenIn = order.sellToken0 ? order.currency0 : order.currency1; // Maker Selling
+        Currency tokenIn = order.sellToken0 ? order.currency0 : order.currency1;
         Currency tokenOut = order.sellToken0
             ? order.currency1
-            : order.currency0; // Maker Buying
+            : order.currency0;
 
-        // Check if beneficiary has approved (Standard ERC20 check omitted for brevity, assumes Approval)
         // Pull tokenOut from AI (Beneficiary) -> Maker
         IERC20(Currency.unwrap(tokenOut)).safeTransferFrom(
             beneficiary,
@@ -248,22 +272,31 @@ contract ArenaHook is IHooks, ReentrancyGuard {
 
         emit OrderFilled(orderId, beneficiary, true);
 
-        // EIP-8004: Update Agent Reputation
+        // Update Reputation
         if (address(reputation) != address(0)) {
             reputation.giveFeedback(
                 agentId,
-                100, // Score
+                100, // Success score
                 0,
                 "execution",
                 "success",
-                "", // endpoint
-                "", // uri
-                bytes32(0) // hash
+                "",
+                "",
+                bytes32(0)
             );
         }
     }
 
-    // 2. Standard P2P Match (Bot vs Bot / Human vs Human)
+    /**
+     * @notice Uniswap v4 hook called before a swap occurs
+     * @dev Implements the P2P match logic. If a match is found, it short-circuits the swap.
+     * @param sender The address initiating the swap
+     * @param key The pool key
+     * @param params Swap parameters
+     * @return selector The function selector
+     * @return delta The balance delta for the pool manager
+     * @return lpFee The LP fee
+     */
     function beforeSwap(
         address sender,
         PoolKey calldata key,
@@ -460,6 +493,11 @@ contract ArenaHook is IHooks, ReentrancyGuard {
         return IHooks.afterDonate.selector;
     }
 
+    /**
+     * @dev Internal helper to remove an order ID from the pool's active list
+     * @param poolId The ID of the pool
+     * @param orderId The ID of the order to remove
+     */
     function _removeOrder(bytes32 poolId, uint256 orderId) internal {
         uint256[] storage ids = poolOrders[poolId];
         for (uint256 i = 0; i < ids.length; i++) {
@@ -470,6 +508,12 @@ contract ArenaHook is IHooks, ReentrancyGuard {
             }
         }
     }
+
+    /**
+     * @dev Internal helper to calculate the pool ID from the pool key
+     * @param key The pool key
+     * @return poolId The resulting pool ID
+     */
     function _getPoolId(
         PoolKey calldata key
     ) internal pure returns (bytes32 poolId) {
